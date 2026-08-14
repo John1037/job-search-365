@@ -1,6 +1,11 @@
 export const JOB_LIST_COLUMNS =
   'id, job_title, employer, status, salary_min, salary_max, salary_type, salary_basis, location_type, location';
 
+// Of the fixed event names, only these describe something still ahead —
+// the rest ("Applied", "Interview completed", "Offer received") record
+// something that already happened and shouldn't surface as an alert.
+export const UPCOMING_EVENT_NAMES = ['Interview scheduled'];
+
 const SALARY_TYPE_LABELS = {
   annual: '/yr',
   monthly: '/mo',

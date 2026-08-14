@@ -39,6 +39,7 @@
 
 body {
   margin: 0;
+  padding-bottom: 56px;
   color: var(--text);
   background: var(--bg);
 }
@@ -550,6 +551,15 @@ body {
   text-decoration: underline;
 }
 
+.alerts-list .item-name-link,
+.alerts-list .item-meta {
+  color: var(--error);
+}
+
+.alerts-list .item-name-link:hover {
+  color: var(--error);
+}
+
 .item-subtext {
   font-size: 12px;
   color: var(--text);
@@ -793,10 +803,16 @@ body {
 }
 
 .app-footer {
-  padding: 20px 24px;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  padding: 12px 24px;
   text-align: center;
   font-size: 13px;
   color: var(--text);
+  background: var(--bg);
   border-top: 1px solid var(--border);
 }
 

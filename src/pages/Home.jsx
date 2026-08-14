@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import JobListItem from '../components/JobListItem';
-import { JOB_LIST_COLUMNS } from '../jobFormat';
+import { JOB_LIST_COLUMNS, UPCOMING_EVENT_NAMES } from '../jobFormat';
 
 function formatLocalDate(date) {
   const year = date.getFullYear();
@@ -44,6 +44,7 @@ function Home() {
         .select(
           'id, event_name, event_type, event_date, event_time, job_id, jobs(job_title, employer)',
         )
+        .in('event_name', UPCOMING_EVENT_NAMES)
         .gte('event_date', todayStr)
         .lte('event_date', futureStr)
         .order('event_date', { ascending: true })
@@ -125,7 +126,7 @@ function Home() {
             Nothing happening in next {windowDays} days
           </p>
         ) : (
-          <ul className="item-list">
+          <ul className="item-list alerts-list">
             {alerts.map((event) => (
               <li key={event.id} className="item-row">
                 <span className="item-name">
