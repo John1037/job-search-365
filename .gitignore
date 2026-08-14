@@ -13,7 +13,8 @@ dist-ssr
 *.local
 
 # Local Supabase credentials
-src/config.js
+.env
+.env.local
 
 # Local Claude Code settings
 .claude/settings.local.json
