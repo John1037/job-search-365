@@ -1,0 +1,379 @@
+:root {
+  --text: #1f2328;
+  --bg: #ffffff;
+  --border: #d5d8dc;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-bg: rgba(37, 99, 235, 0.1);
+  --error: #dc2626;
+  --brand: #7e14ff;
+  color-scheme: light dark;
+  font: 16px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #e5e7eb;
+    --bg: #16171d;
+    --border: #33353f;
+    --accent: #3b82f6;
+    --accent-hover: #60a5fa;
+    --accent-bg: rgba(59, 130, 246, 0.15);
+    --brand: #a855f7;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.page-center {
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.auth-form h1 {
+  font-size: 24px;
+  margin: 0 0 16px;
+  text-align: center;
+}
+
+.auth-form label {
+  font-size: 14px;
+  margin-top: 8px;
+}
+
+.auth-form input {
+  padding: 8px 10px;
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+}
+
+.auth-form button[type='submit'] {
+  margin-top: 16px;
+  padding: 10px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.auth-form button[type='submit']:hover {
+  background: var(--accent-hover);
+}
+
+.auth-form button[type='submit']:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.link-button {
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 14px;
+  cursor: pointer;
+  align-self: center;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.form-error {
+  color: var(--error);
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+
+.form-message {
+  color: var(--accent);
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+
+.control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.control-bar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.brand-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.brand-text {
+  font-size: 19px;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -0.4px;
+  text-transform: uppercase;
+  color: var(--brand);
+  white-space: nowrap;
+}
+
+.control-bar-menu {
+  display: flex;
+  gap: 16px;
+}
+
+.control-bar-profile {
+  position: relative;
+}
+
+.profile-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.profile-button:hover {
+  border-color: var(--accent);
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+.profile-dropdown button {
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.profile-dropdown button:hover {
+  background: var(--accent-bg);
+}
+
+.page-content {
+  padding: 24px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.home-page {
+  padding: 24px;
+}
+
+.home-greeting {
+  margin: 0 0 24px;
+  font-size: 26px;
+  text-align: left;
+}
+
+.home-section {
+  margin-bottom: 24px;
+}
+
+.home-section h2 {
+  font-size: 18px;
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-form h1 {
+  font-size: 22px;
+  margin: 0 0 16px;
+}
+
+.avatar-upload {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.avatar-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 auto;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  overflow: hidden;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-upload-button {
+  margin: 0;
+}
+
+.avatar-file-input {
+  display: none;
+}
+
+.profile-form label {
+  font-size: 14px;
+  margin-top: 12px;
+}
+
+.profile-form input {
+  padding: 8px 10px;
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+}
+
+.phone-field {
+  display: flex;
+  gap: 8px;
+  position: relative;
+}
+
+.phone-country-select {
+  flex: 0 0 auto;
+  padding: 8px 6px;
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.phone-number-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 15px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+}
+
+.phone-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+  font-size: 15px;
+}
+
+.field-warning {
+  color: var(--error);
+  font-size: 13px;
+  margin: 2px 0 0;
+}
+
+.field-hint {
+  color: var(--text);
+  opacity: 0.7;
+  font-size: 13px;
+  margin: 2px 0 0;
+}
+
+.profile-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.profile-form-actions button[type='submit'] {
+  padding: 10px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.profile-form-actions button[type='submit']:hover {
+  background: var(--accent-hover);
+}
+
+.profile-form-actions button[type='submit']:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
