@@ -6,6 +6,7 @@ import ControlBar from './ControlBar';
 function Layout() {
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [shortName, setShortName] = useState(null);
+  const [country, setCountry] = useState(null);
 
   useEffect(() => {
     async function loadProfile() {
@@ -17,12 +18,13 @@ function Layout() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('avatar_url, short_name')
+        .select('avatar_url, short_name, country')
         .eq('id', user.id)
         .maybeSingle();
 
       if (profile?.avatar_url) setAvatarUrl(profile.avatar_url);
       if (profile?.short_name) setShortName(profile.short_name);
+      if (profile?.country) setCountry(profile.country);
     }
 
     loadProfile();
@@ -30,8 +32,17 @@ function Layout() {
 
   return (
     <>
-      <ControlBar avatarUrl={avatarUrl} />
-      <Outlet context={{ avatarUrl, setAvatarUrl, shortName, setShortName }} />
+      <ControlBar avatarUrl={avatarUrl} country={country} />
+      <Outlet
+        context={{
+          avatarUrl,
+          setAvatarUrl,
+          shortName,
+          setShortName,
+          country,
+          setCountry,
+        }}
+      />
     </>
   );
 }

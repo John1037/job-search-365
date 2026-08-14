@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
 import EditProfile from './pages/EditProfile';
+import Documents from './pages/Documents';
 
 function App() {
   const [session, setSession] = useState(undefined);
@@ -41,6 +42,7 @@ function App() {
         >
           <Route path="/" element={<Home />} />
           <Route path="/profile" element={<EditProfile />} />
+          <Route path="/documents/:category" element={<Documents />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

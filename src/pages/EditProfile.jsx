@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import PhoneField from '../components/PhoneField';
 import AvatarUpload from '../components/AvatarUpload';
+import { sortedCountries } from '../data/countries';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const EXTENSION_BY_MIME_TYPE = {
@@ -14,8 +15,11 @@ const EXTENSION_BY_MIME_TYPE = {
 
 function EditProfile() {
   const navigate = useNavigate();
-  const { setAvatarUrl: setLayoutAvatarUrl, setShortName: setLayoutShortName } =
-    useOutletContext();
+  const {
+    setAvatarUrl: setLayoutAvatarUrl,
+    setShortName: setLayoutShortName,
+    setCountry: setLayoutCountry,
+  } = useOutletContext();
   const [userId, setUserId] = useState(null);
   const [fullName, setFullName] = useState('');
   const [shortName, setShortName] = useState('');
@@ -24,6 +28,7 @@ function EditProfile() {
   const [phoneCountry, setPhoneCountry] = useState('GB');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [location, setLocation] = useState('');
+  const [country, setCountry] = useState('GB');
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
@@ -48,7 +53,7 @@ function EditProfile() {
       const { data: profile, error } = await supabase
         .from('profiles')
         .select(
-          'full_name, short_name, phone_country, phone_number, location, avatar_url',
+          'full_name, short_name, phone_country, phone_number, location, country, avatar_url',
         )
         .eq('id', user.id)
         .maybeSingle();
@@ -61,6 +66,7 @@ function EditProfile() {
         if (profile.phone_country) setPhoneCountry(profile.phone_country);
         setPhoneNumber(profile.phone_number ?? '');
         setLocation(profile.location ?? '');
+        if (profile.country) setCountry(profile.country);
         setAvatarUrl(profile.avatar_url ?? null);
         setAvatarPreview(profile.avatar_url ?? null);
       }
@@ -124,6 +130,7 @@ function EditProfile() {
       phone_country: phoneCountry,
       phone_number: phoneNumber,
       location,
+      country,
       avatar_url: newAvatarUrl,
       updated_at: new Date().toISOString(),
     });
@@ -138,6 +145,7 @@ function EditProfile() {
     setAvatarFile(null);
     setLayoutAvatarUrl(newAvatarUrl);
     setLayoutShortName(shortName);
+    setLayoutCountry(country);
 
     if (email !== initialEmail) {
       const { error: emailError } = await supabase.auth.updateUser({ email });
@@ -216,6 +224,20 @@ function EditProfile() {
           value={location}
           onChange={(e) => setLocation(e.target.value)}
         />
+
+        <label htmlFor="country">Country</label>
+        <select
+          id="country"
+          className="profile-select"
+          value={country}
+          onChange={(e) => setCountry(e.target.value)}
+        >
+          {sortedCountries.map((c) => (
+            <option key={c.code} value={c.code}>
+              {c.name}
+            </option>
+          ))}
+        </select>
 
         {error && <p className="form-error">{error}</p>}
         {message && <p className="form-message">{message}</p>}
