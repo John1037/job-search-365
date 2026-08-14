@@ -2,7 +2,16 @@
   "permissions": {
     "allow": [
       "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;\" + $env:Path; npm run build 2>&1)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;\" + $env:Path; supabase --version 2>&1)",
+      "PowerShell(winget search supabase 2>&1)",
+      "PowerShell(scoop --version 2>&1)",
+      "Bash(curl -s https://api.github.com/repos/supabase/cli/releases/latest)",
+      "PowerShell(& \"$env:LOCALAPPDATA\\\\supabase-cli\\\\supabase.exe\" --version)",
+      "Bash(\"/c/Users/jmcma/AppData/Local/supabase-cli/supabase.exe\" init *)",
+      "Bash(\"/c/Users/jmcma/AppData/Local/supabase-cli/supabase.exe\" login *)",
+      "Bash(jobs)",
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;\" + $env:Path; npm run dev 2>&1)"
     ]
   }
 }

@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import PhoneField from '../components/PhoneField';
 import AvatarUpload from '../components/AvatarUpload';
+import DeleteAccountDialog from '../components/DeleteAccountDialog';
 import { sortedCountries } from '../data/countries';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
@@ -37,6 +38,7 @@ function EditProfile() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -164,6 +166,29 @@ function EditProfile() {
     setSaving(false);
   }
 
+  async function handleDeleteAccount() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) return { error: 'Not signed in.' };
+
+    const { error: functionError } = await supabase.functions.invoke(
+      'delete-account',
+      {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      },
+    );
+
+    if (functionError) {
+      return { error: functionError.message };
+    }
+
+    await supabase.auth.signOut();
+    navigate('/login');
+    return {};
+  }
+
   if (loading) {
     return <div className="page-content">Loading…</div>;
   }
@@ -255,6 +280,25 @@ function EditProfile() {
           </button>
         </div>
       </form>
+
+      <hr className="danger-zone-divider" />
+
+      <section className="danger-zone">
+        <h2>Danger Zone</h2>
+        <button
+          type="button"
+          className="confirm-danger-button"
+          onClick={() => setDeleteDialogOpen(true)}
+        >
+          Delete my account
+        </button>
+      </section>
+
+      <DeleteAccountDialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        onConfirm={handleDeleteAccount}
+      />
     </div>
   );
 }

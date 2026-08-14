@@ -828,3 +828,15 @@ body {
 .app-footer a:hover {
   text-decoration: underline;
 }
+
+.danger-zone-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 32px 0 24px;
+}
+
+.danger-zone h2 {
+  color: var(--error);
+  font-size: 18px;
+  margin: 0 0 12px;
+}

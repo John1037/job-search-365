@@ -112,7 +112,7 @@ function Home() {
 
   return (
     <div className="home-page">
-      <h1 className="home-greeting">Hi {displayName}</h1>
+      <h1 className="home-greeting">Hi {displayName}, here's what's going on</h1>
 
       <section className="home-section">
         <h2>Alerts</h2>
