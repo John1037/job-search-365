@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import Footer from '../components/Footer';
 
 function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -32,38 +33,43 @@ function ResetPassword() {
   }
 
   return (
-    <div className="page-center">
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <h1>Set a new password</h1>
+    <>
+      <div className="page-center">
+        <form className="auth-form" onSubmit={handleSubmit}>
+          <h1>Set a new password</h1>
 
-        <label htmlFor="password">New password</label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="new-password"
-        />
+          <label htmlFor="password">New password</label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
 
-        <label htmlFor="confirmPassword">Confirm password</label>
-        <input
-          id="confirmPassword"
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-          autoComplete="new-password"
-        />
+          <label htmlFor="confirmPassword">Confirm password</label>
+          <input
+            id="confirmPassword"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            autoComplete="new-password"
+          />
 
-        {error && <p className="form-error">{error}</p>}
-        {success && <p className="form-message">Password updated. Redirecting…</p>}
+          {error && <p className="form-error">{error}</p>}
+          {success && (
+            <p className="form-message">Password updated. Redirecting…</p>
+          )}
 
-        <button type="submit" disabled={loading}>
-          {loading ? 'Please wait…' : 'Update password'}
-        </button>
-      </form>
-    </div>
+          <button type="submit" disabled={loading}>
+            {loading ? 'Please wait…' : 'Update password'}
+          </button>
+        </form>
+      </div>
+      <Footer />
+    </>
   );
 }
 

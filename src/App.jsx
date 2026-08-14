@@ -7,6 +7,10 @@ import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
 import EditProfile from './pages/EditProfile';
 import Documents from './pages/Documents';
+import Settings from './pages/Settings';
+import AddJob from './pages/AddJob';
+import ManageJobs from './pages/ManageJobs';
+import JobDetail from './pages/JobDetail';
 
 function App() {
   const [session, setSession] = useState(undefined);
@@ -43,6 +47,11 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/profile" element={<EditProfile />} />
           <Route path="/documents/:category" element={<Documents />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/jobs" element={<ManageJobs />} />
+          <Route path="/jobs/closed" element={<ManageJobs closed />} />
+          <Route path="/jobs/new" element={<AddJob />} />
+          <Route path="/jobs/:id" element={<JobDetail />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = [
@@ -27,6 +28,7 @@ function Documents() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const [docPendingDelete, setDocPendingDelete] = useState(null);
 
   const labelFn = CATEGORY_LABELS[category];
   const categoryLabel = labelFn ? labelFn(country) : null;
@@ -158,7 +160,10 @@ function Documents() {
     );
   }
 
-  async function handleDelete(doc) {
+  async function handleConfirmDelete() {
+    const doc = docPendingDelete;
+    if (!doc) return;
+
     setError(null);
 
     const { error: storageError } = await supabase.storage
@@ -167,6 +172,7 @@ function Documents() {
 
     if (storageError) {
       setError(storageError.message);
+      setDocPendingDelete(null);
       return;
     }
 
@@ -177,10 +183,12 @@ function Documents() {
 
     if (deleteError) {
       setError(deleteError.message);
+      setDocPendingDelete(null);
       return;
     }
 
     setDocuments((docs) => docs.filter((d) => d.id !== doc.id));
+    setDocPendingDelete(null);
   }
 
   if (!labelFn) {
@@ -199,8 +207,8 @@ function Documents() {
   }
 
   return (
-    <div className="documents-page">
-      <div className="documents-header">
+    <div className="list-page">
+      <div className="list-header">
         <h1>Manage {categoryLabel}</h1>
         <div>
           <button
@@ -227,26 +235,27 @@ function Documents() {
       ) : documents.length === 0 ? (
         <p className="field-hint">No {categoryLabel.toLowerCase()} uploaded yet.</p>
       ) : (
-        <ul className="documents-list">
+        <ul className="item-list">
           {documents.map((doc) => (
-            <li key={doc.id} className="document-row">
-              <span className="document-name">{doc.file_name}</span>
-              <span className="document-date">
+            <li key={doc.id} className="item-row">
+              <span className="item-name">
+                <span className="item-name-primary">{doc.file_name}</span>
+              </span>
+              <span className="item-meta">
                 {new Date(doc.uploaded_at).toLocaleDateString()}
               </span>
-              <div className="document-actions">
-                {category === 'cv' &&
-                  (doc.is_default ? (
-                    <span className="document-default-badge">Default</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="link-button"
-                      onClick={() => handleSetDefault(doc)}
-                    >
-                      Set as default
-                    </button>
-                  ))}
+              <div className="item-actions">
+                {doc.is_default ? (
+                  <span className="item-badge">Default</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="link-button"
+                    onClick={() => handleSetDefault(doc)}
+                  >
+                    Set as default
+                  </button>
+                )}
                 <button
                   type="button"
                   className="link-button"
@@ -256,8 +265,8 @@ function Documents() {
                 </button>
                 <button
                   type="button"
-                  className="link-button document-delete"
-                  onClick={() => handleDelete(doc)}
+                  className="link-button item-delete"
+                  onClick={() => setDocPendingDelete(doc)}
                 >
                   Delete
                 </button>
@@ -274,6 +283,15 @@ function Documents() {
       >
         Back to home
       </button>
+
+      <ConfirmDialog
+        open={!!docPendingDelete}
+        title="Delete document?"
+        message={`Delete "${docPendingDelete?.file_name}"? This can't be undone.`}
+        confirmLabel="Delete"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDocPendingDelete(null)}
+      />
     </div>
   );
 }

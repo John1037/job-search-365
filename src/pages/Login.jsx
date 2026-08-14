@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '../supabaseClient';
+import Footer from '../components/Footer';
 
 function Login() {
   const [mode, setMode] = useState('sign-in'); // 'sign-in' | 'sign-up' | 'forgot-password'
@@ -90,87 +91,90 @@ function Login() {
   };
 
   return (
-    <div className="page-center">
-      <form className="auth-form" onSubmit={handlers[mode]}>
-        <h1>{titles[mode]}</h1>
+    <>
+      <div className="page-center">
+        <form className="auth-form" onSubmit={handlers[mode]}>
+          <h1>{titles[mode]}</h1>
 
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="email"
-        />
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+          />
 
-        {mode !== 'forgot-password' && (
-          <>
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete={
-                mode === 'sign-up' ? 'new-password' : 'current-password'
-              }
-            />
-          </>
-        )}
+          {mode !== 'forgot-password' && (
+            <>
+              <label htmlFor="password">Password</label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete={
+                  mode === 'sign-up' ? 'new-password' : 'current-password'
+                }
+              />
+            </>
+          )}
 
-        {mode === 'sign-up' && (
-          <>
-            <label htmlFor="confirmPassword">Confirm password</label>
-            <input
-              id="confirmPassword"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-            />
-          </>
-        )}
+          {mode === 'sign-up' && (
+            <>
+              <label htmlFor="confirmPassword">Confirm password</label>
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                autoComplete="new-password"
+              />
+            </>
+          )}
 
-        {error && <p className="form-error">{error}</p>}
-        {message && <p className="form-message">{message}</p>}
+          {error && <p className="form-error">{error}</p>}
+          {message && <p className="form-message">{message}</p>}
 
-        <button type="submit" disabled={loading}>
-          {loading ? 'Please wait…' : submitLabels[mode]}
-        </button>
-
-        {mode === 'sign-in' && (
-          <>
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => switchMode('forgot-password')}
-            >
-              Forgot password?
-            </button>
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => switchMode('sign-up')}
-            >
-              Don't have an account? Sign up
-            </button>
-          </>
-        )}
-
-        {(mode === 'sign-up' || mode === 'forgot-password') && (
-          <button
-            type="button"
-            className="link-button"
-            onClick={() => switchMode('sign-in')}
-          >
-            Back to log in
+          <button type="submit" disabled={loading}>
+            {loading ? 'Please wait…' : submitLabels[mode]}
           </button>
-        )}
-      </form>
-    </div>
+
+          {mode === 'sign-in' && (
+            <>
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => switchMode('forgot-password')}
+              >
+                Forgot password?
+              </button>
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => switchMode('sign-up')}
+              >
+                Don't have an account? Sign up
+              </button>
+            </>
+          )}
+
+          {(mode === 'sign-up' || mode === 'forgot-password') && (
+            <button
+              type="button"
+              className="link-button"
+              onClick={() => switchMode('sign-in')}
+            >
+              Back to log in
+            </button>
+          )}
+        </form>
+      </div>
+      <Footer />
+    </>
   );
 }
 

@@ -37,6 +37,12 @@ function ControlBar({ avatarUrl, country }) {
     },
   ];
 
+  const jobsItems = [
+    { label: 'Add a job', onClick: () => navigate('/jobs/new') },
+    { label: 'Manage jobs', onClick: () => navigate('/jobs') },
+    { label: 'View closed jobs', onClick: () => navigate('/jobs/closed') },
+  ];
+
   return (
     <header className="control-bar">
       <Link to="/" className="control-bar-brand">
@@ -47,6 +53,7 @@ function ControlBar({ avatarUrl, country }) {
       <div className="control-bar-right">
         <nav className="control-bar-menu">
           <NavDropdown label="Documents" items={documentsItems} />
+          <NavDropdown label="Jobs" items={jobsItems} />
         </nav>
 
         <div className="control-bar-profile" ref={menuRef}>
@@ -76,6 +83,16 @@ function ControlBar({ avatarUrl, country }) {
                 }}
               >
                 Edit profile
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  navigate('/settings');
+                }}
+              >
+                Settings
               </button>
               <button type="button" role="menuitem" onClick={handleLogOut}>
                 Log out
