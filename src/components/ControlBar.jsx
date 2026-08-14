@@ -52,7 +52,15 @@ function ControlBar({ avatarUrl, country }) {
 
       <div className="control-bar-right">
         <nav className="control-bar-menu">
-          <NavDropdown label="Documents" items={documentsItems} />
+          <NavDropdown
+            label={
+              <>
+                <span className="label-full">Documents</span>
+                <span className="label-short">Docs</span>
+              </>
+            }
+            items={documentsItems}
+          />
           <NavDropdown label="Jobs" items={jobsItems} />
         </nav>
 

@@ -193,6 +193,20 @@ body {
   font-size: 10px;
 }
 
+.label-short {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .label-full {
+    display: none;
+  }
+
+  .label-short {
+    display: inline;
+  }
+}
+
 .control-bar-profile {
   position: relative;
 }
