@@ -143,6 +143,18 @@ function JobDetail() {
 
     if (insertError) return { error: insertError.message };
 
+    const { error: statusError } = await supabase
+      .from('jobs')
+      .update({
+        status: eventInput.event_name,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (statusError) return { error: statusError.message };
+
+    setJob((j) => ({ ...j, status: eventInput.event_name }));
+
     setEvents((evts) =>
       [...evts, data].sort((a, b) => {
         if (a.event_date !== b.event_date) {
@@ -226,6 +238,10 @@ function JobDetail() {
 
   const salary = formatSalary(job);
   const location = formatLocation(job);
+  const eventNameOptions =
+    job.status === 'Interested'
+      ? ['Applied']
+      : ['Interview scheduled', 'Interview completed', 'Offer received'];
 
   return (
     <div className="job-detail-page">
@@ -344,21 +360,25 @@ function JobDetail() {
               >
                 View {cvWord}
               </button>
-              <button
-                type="button"
-                className="button-secondary"
-                onClick={handleDisconnectCv}
-              >
-                Disconnect {cvWord}
-              </button>
-              <button
-                type="button"
-                className="button-secondary"
-                disabled
-                title="Coming soon"
-              >
-                Tweak {cvWord}
-              </button>
+              {job.status === 'Interested' && (
+                <>
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    onClick={handleDisconnectCv}
+                  >
+                    Disconnect {cvWord}
+                  </button>
+                  <button
+                    type="button"
+                    className="button-secondary"
+                    disabled
+                    title="Coming soon"
+                  >
+                    Tweak {cvWord}
+                  </button>
+                </>
+              )}
             </>
           ) : (
             job.status === 'Interested' && (
@@ -414,6 +434,7 @@ function JobDetail() {
         open={addEventOpen}
         onClose={() => setAddEventOpen(false)}
         onSubmit={handleAddEvent}
+        eventNameOptions={eventNameOptions}
       />
 
       <ConnectCvDialog

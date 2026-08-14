@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import Modal from './Modal';
 
-function AddEventDialog({ open, onClose, onSubmit }) {
+function AddEventDialog({ open, onClose, onSubmit, eventNameOptions }) {
   const [eventName, setEventName] = useState('');
   const [eventType, setEventType] = useState('');
   const [eventDate, setEventDate] = useState('');
@@ -56,14 +56,22 @@ function AddEventDialog({ open, onClose, onSubmit }) {
         <h2>Add event</h2>
 
         <label htmlFor="eventName">Event</label>
-        <input
+        <select
           id="eventName"
-          type="text"
-          placeholder="e.g. Interview, Applied, Offer"
+          className="profile-select"
           value={eventName}
           onChange={(e) => setEventName(e.target.value)}
           required
-        />
+        >
+          <option value="" disabled>
+            Select an event
+          </option>
+          {eventNameOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
 
         <label htmlFor="eventType">Type</label>
         <input

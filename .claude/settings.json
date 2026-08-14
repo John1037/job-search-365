@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;\" + $env:Path; npm run build 2>&1)"
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;\" + $env:Path; npm run build 2>&1)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
