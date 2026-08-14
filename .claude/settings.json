@@ -11,7 +11,12 @@
       "Bash(\"/c/Users/jmcma/AppData/Local/supabase-cli/supabase.exe\" init *)",
       "Bash(\"/c/Users/jmcma/AppData/Local/supabase-cli/supabase.exe\" login *)",
       "Bash(jobs)",
-      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;\" + $env:Path; npm run dev 2>&1)"
+      "PowerShell($env:Path = \"C:\\\\Program Files\\\\nodejs;\" + $env:Path; npm run dev 2>&1)",
+      "Bash(curl -s https://jobsearch365.com/)",
+      "Bash(curl -s -o /dev/null -w \"JS status: %{http_code}\\\\n\" https://jobsearch365.com/assets/index-BaDz0iEZ.js)",
+      "Bash(curl -s -o /dev/null -w \"CSS status: %{http_code}\\\\n\" https://jobsearch365.com/assets/index-CVURcbEB.css)",
+      "Bash(curl -s https://jobsearch365.com/assets/index-BaDz0iEZ.js)",
+      "Bash(curl -sI https://jobsearch365.com/)"
     ]
   }
 }

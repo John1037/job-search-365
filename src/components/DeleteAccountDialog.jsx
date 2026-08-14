@@ -37,8 +37,8 @@ function DeleteAccountDialog({ open, onClose, onConfirm }) {
       >
         <h2 id="delete-account-title">Delete my account</h2>
         <p>
-          All data will be deleted, including personal details, uploaded
-          documents, jobs and events. Type "{CONFIRM_TEXT}" to confirm.
+          This action is not reversible, ALL of your data will be deleted,
+          and we won't be able to recover it. Proceed?
         </p>
 
         <label htmlFor="deleteConfirmText">Type "{CONFIRM_TEXT}" to confirm</label>

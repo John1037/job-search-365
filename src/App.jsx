@@ -16,9 +16,29 @@ function App() {
   const [session, setSession] = useState(undefined);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    async function init() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session) {
+        // getSession() only reads local storage; confirm the account
+        // still actually exists server-side before trusting it.
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) {
+          await supabase.auth.signOut();
+          setSession(null);
+          return;
+        }
+      }
+
       setSession(session);
-    });
+    }
+
+    init().catch(() => setSession(null));
 
     const {
       data: { subscription },
