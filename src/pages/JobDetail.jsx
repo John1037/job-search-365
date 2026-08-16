@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import AddEventDialog from '../components/AddEventDialog';
 import ConnectCvDialog from '../components/ConnectCvDialog';
-import { formatSalary, formatLocation } from '../jobFormat';
+import { formatSalary, formatLocation, formatEventDateTime } from '../jobFormat';
 
 function JobDetail() {
   const { id } = useParams();
@@ -414,8 +414,7 @@ function JobDetail() {
                 )}
               </span>
               <span className="item-meta">
-                {event.event_date}
-                {event.event_time ? ` ${event.event_time}` : ''}
+                {formatEventDateTime(event.event_date, event.event_time, country === 'US')}
               </span>
             </li>
           ))}

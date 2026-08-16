@@ -39,3 +39,31 @@ export function formatLocation(job) {
   if (typeLabel === 'Remote' || !job.location) return typeLabel;
   return `${typeLabel} — ${job.location}`;
 }
+
+const MONTH_ABBR = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+];
+
+function formatTime12Hour(hh, mm) {
+  const hourNum = Number(hh);
+  const period = hourNum >= 12 ? 'PM' : 'AM';
+  const hour12 = hourNum % 12 === 0 ? 12 : hourNum % 12;
+  return `${hour12}:${mm} ${period}`;
+}
+
+// US: 12-hour clock with AM/PM. Everywhere else: 24-hour clock.
+export function formatEventDateTime(dateStr, timeStr, isUS) {
+  const [year, month, day] = dateStr.split('-');
+  const monthAbbr = MONTH_ABBR[Number(month) - 1];
+  const datePart = isUS
+    ? `${monthAbbr} ${day} ${year}`
+    : `${day} ${monthAbbr} ${year}`;
+
+  if (!timeStr) return datePart;
+
+  const [hh, mm] = timeStr.split(':');
+  const timePart = isUS ? formatTime12Hour(hh, mm) : `${hh}:${mm}`;
+
+  return `${datePart} ${timePart}`;
+}

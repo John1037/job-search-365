@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import ConfirmDialog from '../components/ConfirmDialog';
+import DescribeDocumentDialog from '../components/DescribeDocumentDialog';
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = [
@@ -10,11 +11,13 @@ const ALLOWED_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
 const SIGNED_URL_TTL_SECONDS = 60;
+const FIXED_CATEGORIES = ['cv', 'cover_letter', 'certificate'];
 
 const CATEGORY_LABELS = {
   cv: (country) => (country === 'US' ? 'Resumes' : 'CVs'),
   cover_letter: () => 'Cover letters',
   certificate: () => 'Certificates',
+  other: () => 'Other documents',
 };
 
 function Documents() {
@@ -22,6 +25,7 @@ function Documents() {
   const { country } = useOutletContext();
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
+  const isOther = category === 'other';
 
   const [userId, setUserId] = useState(null);
   const [documents, setDocuments] = useState([]);
@@ -29,6 +33,8 @@ function Documents() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [docPendingDelete, setDocPendingDelete] = useState(null);
+  const [pendingFile, setPendingFile] = useState(null);
+  const [describeDialogOpen, setDescribeDialogOpen] = useState(false);
 
   const labelFn = CATEGORY_LABELS[category];
   const categoryLabel = labelFn ? labelFn(country) : null;
@@ -47,12 +53,18 @@ function Documents() {
       if (!user) return;
       setUserId(user.id);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('documents')
-        .select('id, file_name, storage_path, uploaded_at, is_default')
-        .eq('user_id', user.id)
-        .eq('category', category)
-        .order('uploaded_at', { ascending: false });
+        .select('id, file_name, storage_path, uploaded_at, is_default, category')
+        .eq('user_id', user.id);
+
+      query = isOther
+        ? query.not('category', 'in', `(${FIXED_CATEGORIES.join(',')})`)
+        : query.eq('category', category);
+
+      const { data, error } = await query.order('uploaded_at', {
+        ascending: false,
+      });
 
       if (error) {
         setError(error.message);
@@ -64,7 +76,43 @@ function Documents() {
     }
 
     loadDocuments();
-  }, [category, labelFn]);
+  }, [category, isOther, labelFn]);
+
+  async function uploadFile(file, categoryValue) {
+    setUploading(true);
+
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const path = `${userId}/${crypto.randomUUID()}-${sanitizedName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(path, file, { contentType: file.type });
+
+    if (uploadError) {
+      setUploading(false);
+      return { error: uploadError.message };
+    }
+
+    const { data: inserted, error: insertError } = await supabase
+      .from('documents')
+      .insert({
+        user_id: userId,
+        category: categoryValue,
+        file_name: file.name,
+        storage_path: path,
+      })
+      .select('id, file_name, storage_path, uploaded_at, is_default, category')
+      .single();
+
+    setUploading(false);
+
+    if (insertError) {
+      return { error: insertError.message };
+    }
+
+    setDocuments((docs) => [inserted, ...docs]);
+    return {};
+  }
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0];
@@ -81,39 +129,26 @@ function Documents() {
     }
 
     setError(null);
-    setUploading(true);
 
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
-    const path = `${userId}/${crypto.randomUUID()}-${sanitizedName}`;
-
-    const { error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(path, file, { contentType: file.type });
-
-    if (uploadError) {
-      setError(uploadError.message);
-      setUploading(false);
+    if (isOther) {
+      setPendingFile(file);
+      setDescribeDialogOpen(true);
       return;
     }
 
-    const { data: inserted, error: insertError } = await supabase
-      .from('documents')
-      .insert({
-        user_id: userId,
-        category,
-        file_name: file.name,
-        storage_path: path,
-      })
-      .select('id, file_name, storage_path, uploaded_at, is_default')
-      .single();
+    const result = await uploadFile(file, category);
+    if (result.error) setError(result.error);
+  }
 
-    if (insertError) {
-      setError(insertError.message);
-    } else {
-      setDocuments((docs) => [inserted, ...docs]);
+  async function handleDescribeSubmit(description) {
+    const result = await uploadFile(pendingFile, description);
+
+    if (!result.error) {
+      setPendingFile(null);
+      setDescribeDialogOpen(false);
     }
 
-    setUploading(false);
+    return result;
   }
 
   async function handleView(doc) {
@@ -137,7 +172,7 @@ function Documents() {
       .from('documents')
       .update({ is_default: false })
       .eq('user_id', userId)
-      .eq('category', category)
+      .eq('category', doc.category)
       .eq('is_default', true);
 
     if (clearError) {
@@ -156,7 +191,10 @@ function Documents() {
     }
 
     setDocuments((docs) =>
-      docs.map((d) => ({ ...d, is_default: d.id === doc.id })),
+      docs.map((d) => ({
+        ...d,
+        is_default: d.id === doc.id ? true : d.category === doc.category ? false : d.is_default,
+      })),
     );
   }
 
@@ -240,6 +278,9 @@ function Documents() {
             <li key={doc.id} className="item-row">
               <span className="item-name">
                 <span className="item-name-primary">{doc.file_name}</span>
+                {isOther && doc.category && (
+                  <span className="item-subtext">{doc.category}</span>
+                )}
               </span>
               <span className="item-meta">
                 {new Date(doc.uploaded_at).toLocaleDateString()}
@@ -291,6 +332,15 @@ function Documents() {
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         onCancel={() => setDocPendingDelete(null)}
+      />
+
+      <DescribeDocumentDialog
+        open={describeDialogOpen}
+        onClose={() => {
+          setDescribeDialogOpen(false);
+          setPendingFile(null);
+        }}
+        onSubmit={handleDescribeSubmit}
       />
     </div>
   );

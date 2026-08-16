@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import JobListItem from '../components/JobListItem';
-import { JOB_LIST_COLUMNS, UPCOMING_EVENT_NAMES } from '../jobFormat';
+import {
+  JOB_LIST_COLUMNS,
+  UPCOMING_EVENT_NAMES,
+  formatEventDateTime,
+} from '../jobFormat';
 
 function formatLocalDate(date) {
   const year = date.getFullYear();
@@ -12,7 +16,8 @@ function formatLocalDate(date) {
 }
 
 function Home() {
-  const { shortName, alertWindowDays } = useOutletContext();
+  const { shortName, alertWindowDays, country } = useOutletContext();
+  const isUS = country === 'US';
   const displayName = shortName || 'User';
   const windowDays = alertWindowDays ?? 30;
 
@@ -143,9 +148,8 @@ function Home() {
                     </span>
                   )}
                 </span>
-                <span className="item-meta">
-                  {event.event_date}
-                  {event.event_time ? ` ${event.event_time}` : ''}
+                <span className="item-meta alert-datetime">
+                  {formatEventDateTime(event.event_date, event.event_time, isUS)}
                 </span>
               </li>
             ))}

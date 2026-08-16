@@ -35,6 +35,10 @@ function ControlBar({ avatarUrl, country }) {
       label: 'Manage certificates',
       onClick: () => navigate('/documents/certificate'),
     },
+    {
+      label: 'Manage other documents',
+      onClick: () => navigate('/documents/other'),
+    },
   ];
 
   const jobsItems = [
