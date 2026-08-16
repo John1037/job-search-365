@@ -49,7 +49,7 @@ function ControlBar({ avatarUrl, country }) {
 
   return (
     <header className="control-bar">
-      <Link to="/" className="control-bar-brand">
+      <Link to="/main" className="control-bar-brand">
         <img src="/favicon.svg" alt="" className="brand-icon" />
         <span className="brand-text">Job Search 365</span>
       </Link>

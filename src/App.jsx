@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import Layout from './components/Layout';
+import Landing from './pages/Landing';
 import Login from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
@@ -56,15 +57,16 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<Landing />} />
         <Route
           path="/login"
-          element={session ? <Navigate to="/" replace /> : <Login />}
+          element={session ? <Navigate to="/main" replace /> : <Login />}
         />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           element={session ? <Layout /> : <Navigate to="/login" replace />}
         >
-          <Route path="/" element={<Home />} />
+          <Route path="/main" element={<Home />} />
           <Route path="/profile" element={<EditProfile />} />
           <Route path="/documents/:category" element={<Documents />} />
           <Route path="/settings" element={<Settings />} />
@@ -73,7 +75,10 @@ function App() {
           <Route path="/jobs/new" element={<AddJob />} />
           <Route path="/jobs/:id" element={<JobDetail />} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route
+          path="*"
+          element={<Navigate to={session ? '/main' : '/'} replace />}
+        />
       </Routes>
     </BrowserRouter>
   );

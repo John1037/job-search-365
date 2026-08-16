@@ -67,3 +67,17 @@ export function formatEventDateTime(dateStr, timeStr, isUS) {
 
   return `${datePart} ${timePart}`;
 }
+
+// Unlike event dates/times (fixed wall-clock values, never converted),
+// this is a genuine instant in time — converting to the viewer's local
+// timezone for display is the correct behaviour here.
+export function formatStatusDate(isoTimestamp, isUS) {
+  if (!isoTimestamp) return null;
+
+  const date = new Date(isoTimestamp);
+  const day = String(date.getDate()).padStart(2, '0');
+  const monthAbbr = MONTH_ABBR[date.getMonth()];
+  const year = date.getFullYear();
+
+  return isUS ? `${monthAbbr} ${day} ${year}` : `${day} ${monthAbbr} ${year}`;
+}

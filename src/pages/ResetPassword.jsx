@@ -28,7 +28,7 @@ function ResetPassword() {
       setError(error.message);
     } else {
       setSuccess(true);
-      setTimeout(() => navigate('/'), 1500);
+      setTimeout(() => navigate('/main'), 1500);
     }
   }
 

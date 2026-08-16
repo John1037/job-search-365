@@ -274,7 +274,7 @@ function EditProfile() {
           <button
             type="button"
             className="link-button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/main')}
           >
             Back to home
           </button>

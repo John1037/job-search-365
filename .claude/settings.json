@@ -16,7 +16,11 @@
       "Bash(curl -s -o /dev/null -w \"JS status: %{http_code}\\\\n\" https://jobsearch365.com/assets/index-BaDz0iEZ.js)",
       "Bash(curl -s -o /dev/null -w \"CSS status: %{http_code}\\\\n\" https://jobsearch365.com/assets/index-CVURcbEB.css)",
       "Bash(curl -s https://jobsearch365.com/assets/index-BaDz0iEZ.js)",
-      "Bash(curl -sI https://jobsearch365.com/)"
+      "Bash(curl -sI https://jobsearch365.com/)",
+      "WebSearch",
+      "WebFetch(domain:www.pexels.com)",
+      "Bash(curl -sL \"https://images.pexels.com/photos/8204381/pexels-photo-8204381.jpeg?auto=compress&cs=tinysrgb&w=1920\" -o \"C:/Users/jmcma/AppData/Local/Temp/claude/d--jmcma-Documents-Claude-Job-App/94c24111-58d5-4c02-a7f4-9409432cde85/scratchpad/preview.jpg\")",
+      "Bash(curl -sL \"https://images.pexels.com/photos/2422286/pexels-photo-2422286.jpeg?auto=compress&cs=tinysrgb&w=1920\" -o \"C:/Users/jmcma/AppData/Local/Temp/claude/d--jmcma-Documents-Claude-Job-App/94c24111-58d5-4c02-a7f4-9409432cde85/scratchpad/preview2.jpg\")"
     ]
   }
 }

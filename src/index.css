@@ -737,6 +737,20 @@ body {
   margin: 0;
 }
 
+.status-with-date {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.status-updated-label {
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
 .job-detail-layout {
   display: grid;
   grid-template-columns: 1fr 200px;
@@ -870,4 +884,170 @@ body {
   color: var(--error);
   font-size: 18px;
   margin: 0 0 12px;
+}
+
+.landing-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.landing-main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 56px 24px;
+}
+
+.landing-hero {
+  background: var(--bg);
+  padding: 56px 24px;
+}
+
+.landing-hero-inner {
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+@media (min-width: 641px) {
+  .landing-hero {
+    display: flex;
+    align-items: flex-start;
+    aspect-ratio: 1140 / 580;
+    max-height: 1000px;
+    padding: 70px 24px 0;
+    background:
+      linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.6) 0%,
+        rgba(255, 255, 255, 0.25) 42%,
+        transparent 65%
+      ),
+      url('/hero-photo.jpg') top right / cover no-repeat;
+  }
+
+  .landing-hero-inner {
+    margin-left: max(24px, calc((100% - 960px) / 2));
+    text-align: left;
+  }
+
+  .landing-actions {
+    justify-content: flex-start;
+  }
+
+  /* The photo's colors don't shift with light/dark mode, so the text
+     sitting on it needs fixed, always-legible colors rather than the
+     theme variables used everywhere else on the site. */
+  .landing-hero .landing-title {
+    color: #7e14ff;
+  }
+
+  .landing-hero .landing-tagline {
+    color: #1f2328;
+    opacity: 1;
+  }
+
+  .landing-hero .landing-button-secondary {
+    color: #1f2328;
+    border-color: rgba(31, 35, 40, 0.35);
+  }
+
+  .landing-hero .landing-button-secondary:hover {
+    border-color: #1f2328;
+  }
+}
+
+.landing-title {
+  font-size: 36px;
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -0.4px;
+  text-transform: uppercase;
+  color: var(--brand);
+  margin: 0 0 14px;
+}
+
+.landing-tagline {
+  font-size: 18px;
+  color: var(--text);
+  opacity: 0.8;
+  margin: 0 0 32px;
+}
+
+.landing-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.landing-button-primary,
+.landing-button-secondary {
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.landing-button-primary {
+  color: #fff;
+  background: var(--accent);
+}
+
+.landing-button-primary:hover {
+  background: var(--accent-hover);
+}
+
+.landing-button-secondary {
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+}
+
+.landing-button-secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.landing-header-button {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.landing-features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 24px;
+}
+
+.landing-feature-card {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.landing-feature-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 16px;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.landing-feature-card h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+.landing-feature-card p {
+  font-size: 14px;
+  color: var(--text);
+  opacity: 0.75;
+  margin: 0;
+  line-height: 1.5;
 }

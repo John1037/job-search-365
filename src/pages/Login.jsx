@@ -1,9 +1,13 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import Footer from '../components/Footer';
 
 function Login() {
-  const [mode, setMode] = useState('sign-in'); // 'sign-in' | 'sign-up' | 'forgot-password'
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState(
+    searchParams.get('mode') === 'signup' ? 'sign-up' : 'sign-in',
+  ); // 'sign-in' | 'sign-up' | 'forgot-password'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');

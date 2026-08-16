@@ -236,7 +236,7 @@ function Documents() {
         <button
           type="button"
           className="link-button"
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/main')}
         >
           Back to home
         </button>
@@ -320,7 +320,7 @@ function Documents() {
       <button
         type="button"
         className="link-button"
-        onClick={() => navigate('/')}
+        onClick={() => navigate('/main')}
       >
         Back to home
       </button>

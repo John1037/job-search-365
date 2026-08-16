@@ -3,7 +3,12 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import AddEventDialog from '../components/AddEventDialog';
 import ConnectCvDialog from '../components/ConnectCvDialog';
-import { formatSalary, formatLocation, formatEventDateTime } from '../jobFormat';
+import {
+  formatSalary,
+  formatLocation,
+  formatEventDateTime,
+  formatStatusDate,
+} from '../jobFormat';
 
 function JobDetail() {
   const { id } = useParams();
@@ -143,17 +148,20 @@ function JobDetail() {
 
     if (insertError) return { error: insertError.message };
 
+    const now = new Date().toISOString();
+
     const { error: statusError } = await supabase
       .from('jobs')
       .update({
         status: eventInput.event_name,
-        updated_at: new Date().toISOString(),
+        status_updated_at: now,
+        updated_at: now,
       })
       .eq('id', id);
 
     if (statusError) return { error: statusError.message };
 
-    setJob((j) => ({ ...j, status: eventInput.event_name }));
+    setJob((j) => ({ ...j, status: eventInput.event_name, status_updated_at: now }));
 
     setEvents((evts) =>
       [...evts, data].sort((a, b) => {
@@ -249,7 +257,12 @@ function JobDetail() {
         <h1>
           {job.job_title} — {job.employer}
         </h1>
-        <span className="item-badge">{job.status}</span>
+        <div className="status-with-date">
+          <span className="item-badge">{job.status}</span>
+          <span className="status-updated-label">
+            Status updated {formatStatusDate(job.status_updated_at, country === 'US')}
+          </span>
+        </div>
       </div>
 
       <div className="job-detail-layout">
