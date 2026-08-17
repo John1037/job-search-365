@@ -14,12 +14,15 @@ function jsonResponse(body: unknown, status: number) {
 }
 
 Deno.serve(async (req) => {
+  console.log('[delete-account] request received:', req.method);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
+    console.log('[delete-account] missing authorization header');
     return jsonResponse({ error: 'Missing authorization header' }, 401);
   }
 
@@ -37,8 +40,11 @@ Deno.serve(async (req) => {
   } = await supabaseUser.auth.getUser();
 
   if (userError || !user) {
+    console.log('[delete-account] auth.getUser failed:', userError?.message);
     return jsonResponse({ error: 'Not authenticated' }, 401);
   }
+
+  console.log('[delete-account] authenticated as user:', user.id);
 
   // Admin client using the service role key. This key stays server-side in
   // this function's environment and must never be shipped to the browser.
@@ -50,15 +56,25 @@ Deno.serve(async (req) => {
   // Storage objects aren't covered by the database's foreign-key cascades,
   // so remove each bucket's files for this user explicitly.
   for (const bucket of ['avatars', 'documents']) {
-    const { data: files } = await supabaseAdmin.storage
+    const { data: files, error: listError } = await supabaseAdmin.storage
       .from(bucket)
       .list(user.id);
 
+    console.log(`[delete-account] ${bucket} list:`, {
+      count: files?.length ?? 0,
+      listError: listError?.message,
+    });
+
     if (files && files.length > 0) {
       const paths = files.map((file) => `${user.id}/${file.name}`);
-      await supabaseAdmin.storage.from(bucket).remove(paths);
+      const { error: removeError } = await supabaseAdmin.storage
+        .from(bucket)
+        .remove(paths);
+      console.log(`[delete-account] ${bucket} remove error:`, removeError?.message);
     }
   }
+
+  console.log('[delete-account] deleting auth user:', user.id);
 
   // Deleting the auth user cascades to profiles/documents/jobs/events via
   // their "on delete cascade" foreign keys.
@@ -67,8 +83,10 @@ Deno.serve(async (req) => {
   );
 
   if (deleteError) {
+    console.log('[delete-account] deleteUser failed:', deleteError.message);
     return jsonResponse({ error: deleteError.message }, 500);
   }
 
+  console.log('[delete-account] success for user:', user.id);
   return jsonResponse({ success: true }, 200);
 });

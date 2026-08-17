@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
-import Login from './pages/Login';
+import Signup from './pages/Signup';
 import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
 import EditProfile from './pages/EditProfile';
@@ -47,7 +47,22 @@ function App() {
       setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    // onAuthStateChange only fires for actions taken in this tab. If the
+    // user confirms their email (or logs in) in a different tab/window,
+    // Supabase writes the new session to localStorage — pick that up here
+    // so this tab updates without needing a manual refresh.
+    function handleStorageChange(e) {
+      if (e.key && !e.key.includes('supabase')) return;
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+      });
+    }
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   if (session === undefined) {
@@ -57,14 +72,17 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Landing />} />
         <Route
-          path="/login"
-          element={session ? <Navigate to="/main" replace /> : <Login />}
+          path="/"
+          element={session ? <Navigate to="/main" replace /> : <Landing />}
+        />
+        <Route
+          path="/signup"
+          element={session ? <Navigate to="/main" replace /> : <Signup />}
         />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route
-          element={session ? <Layout /> : <Navigate to="/login" replace />}
+          element={session ? <Layout /> : <Navigate to="/" replace />}
         >
           <Route path="/main" element={<Home />} />
           <Route path="/profile" element={<EditProfile />} />

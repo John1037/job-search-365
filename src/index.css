@@ -7,6 +7,10 @@
   --accent-bg: rgba(37, 99, 235, 0.1);
   --error: #dc2626;
   --brand: #7e14ff;
+  --landing-tint: #e7f6f6;
+  --success-text: #15803d;
+  --success-bg: #f0fdf4;
+  --success-border: #bbf7d0;
   color-scheme: light dark;
   font: 16px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
 }
@@ -20,6 +24,10 @@
     --accent-hover: #60a5fa;
     --accent-bg: rgba(59, 130, 246, 0.15);
     --brand: #a855f7;
+    --landing-tint: #1a2626;
+    --success-text: #4ade80;
+    --success-bg: rgba(74, 222, 128, 0.1);
+    --success-border: rgba(74, 222, 128, 0.3);
   }
 }
 
@@ -31,6 +39,10 @@
   --accent-hover: #60a5fa;
   --accent-bg: rgba(59, 130, 246, 0.15);
   --brand: #a855f7;
+  --landing-tint: #1a2626;
+  --success-text: #4ade80;
+  --success-bg: rgba(74, 222, 128, 0.1);
+  --success-border: rgba(74, 222, 128, 0.3);
 }
 
 * {
@@ -41,7 +53,7 @@ body {
   margin: 0;
   padding-bottom: 56px;
   color: var(--text);
-  background: var(--bg);
+  background: var(--landing-tint);
 }
 
 @media (max-width: 480px) {
@@ -57,6 +69,7 @@ body {
   justify-content: center;
   padding: 24px;
 }
+
 
 .auth-form {
   display: flex;
@@ -134,11 +147,24 @@ body {
   margin: 4px 0 0;
 }
 
+.signup-success-message {
+  color: var(--success-text);
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin: 8px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
 .control-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 20px;
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
 
@@ -375,11 +401,11 @@ body {
 .phone-field {
   display: flex;
   gap: 8px;
-  position: relative;
 }
 
 .phone-country-select {
-  flex: 0 0 auto;
+  flex: 0 0 65%;
+  min-width: 0;
   padding: 8px 6px;
   font-size: 15px;
   border: 1px solid var(--border);
@@ -400,16 +426,6 @@ body {
   border-radius: 6px;
   background: transparent;
   color: var(--text);
-}
-
-.phone-measure {
-  position: absolute;
-  top: 0;
-  left: 0;
-  visibility: hidden;
-  white-space: nowrap;
-  pointer-events: none;
-  font-size: 15px;
 }
 
 .field-warning {
@@ -637,6 +653,12 @@ body {
   z-index: 100;
 }
 
+.modal-content {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
 .confirm-dialog {
   width: 100%;
   max-width: 360px;
@@ -842,6 +864,12 @@ body {
   width: 100%;
 }
 
+.login-dialog {
+  max-width: 560px;
+  width: 100%;
+  padding: 40px;
+}
+
 .app-footer {
   position: fixed;
   left: 0;
@@ -886,6 +914,10 @@ body {
   margin: 0 0 12px;
 }
 
+.danger-zone .field-warning {
+  margin-top: 12px;
+}
+
 .landing-header-actions {
   display: flex;
   align-items: center;
@@ -893,13 +925,10 @@ body {
 }
 
 .landing-main {
-  max-width: 960px;
-  margin: 0 auto;
   padding: 56px 24px;
 }
 
 .landing-hero {
-  background: var(--bg);
   padding: 56px 24px;
 }
 
@@ -909,12 +938,18 @@ body {
   text-align: center;
 }
 
+.landing-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
 @media (min-width: 641px) {
   .landing-hero {
     display: flex;
     align-items: flex-start;
     aspect-ratio: 1140 / 580;
-    max-height: 1000px;
+    max-height: 90svh;
     padding: 70px 24px 0;
     background:
       linear-gradient(
@@ -927,7 +962,7 @@ body {
   }
 
   .landing-hero-inner {
-    margin-left: max(24px, calc((100% - 960px) / 2));
+    margin-left: clamp(24px, calc((100% - 960px) / 2), 176px);
     text-align: left;
   }
 
@@ -949,7 +984,8 @@ body {
 
   .landing-hero .landing-button-secondary {
     color: #1f2328;
-    border-color: rgba(31, 35, 40, 0.35);
+    background: #fff;
+    border-color: rgba(31, 35, 40, 0.15);
   }
 
   .landing-hero .landing-button-secondary:hover {
@@ -972,12 +1008,6 @@ body {
   color: var(--text);
   opacity: 0.8;
   margin: 0 0 32px;
-}
-
-.landing-actions {
-  display: flex;
-  gap: 12px;
-  justify-content: center;
 }
 
 .landing-button-primary,
@@ -1016,6 +1046,8 @@ body {
 }
 
 .landing-features {
+  max-width: 960px;
+  margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 24px;
@@ -1023,6 +1055,7 @@ body {
 
 .landing-feature-card {
   padding: 24px;
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 10px;
 }
@@ -1050,4 +1083,135 @@ body {
   opacity: 0.75;
   margin: 0;
   line-height: 1.5;
+}
+
+.signup-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 56px 24px;
+}
+
+.signup-heading {
+  text-align: center;
+  font-size: 28px;
+  font-weight: 800;
+  font-style: italic;
+  color: var(--brand);
+  margin: 0 0 40px;
+}
+
+.pricing-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  align-items: stretch;
+}
+
+@media (max-width: 640px) {
+  .pricing-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pricing-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  padding: 32px 24px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.pricing-card h2 {
+  font-size: 20px;
+  margin: 0 0 16px;
+  color: var(--text);
+}
+
+.pricing-card-intro {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.pricing-card-features {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text);
+  opacity: 0.8;
+  font-size: 14px;
+}
+
+.pricing-card-features li {
+  position: relative;
+  padding: 6px 0 6px 22px;
+  line-height: 1.4;
+}
+
+.pricing-card-features li + li {
+  border-top: 1px solid var(--border);
+}
+
+.pricing-card-features li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.pricing-card-available {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.pricing-card-disabled {
+  opacity: 0.55;
+  filter: grayscale(0.5);
+}
+
+.pricing-card-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pricing-card-cta {
+  margin-top: 20px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.pricing-card-cta-primary {
+  color: #fff;
+  background: #16a34a;
+}
+
+.pricing-card-cta-primary:hover {
+  background: #15803d;
+}
+
+.pricing-card-cta:disabled {
+  color: var(--text);
+  background: var(--border);
+  opacity: 0.8;
+  cursor: default;
 }

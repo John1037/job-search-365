@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Footer from '../components/Footer';
+import LoginDialog from '../components/LoginDialog';
 
 function IconList() {
   return (
@@ -105,6 +107,8 @@ const FEATURES = [
 ];
 
 function Landing() {
+  const [loginOpen, setLoginOpen] = useState(false);
+
   return (
     <>
       <header className="control-bar">
@@ -114,14 +118,15 @@ function Landing() {
         </div>
 
         <div className="landing-header-actions">
-          <Link
-            to="/login"
+          <button
+            type="button"
             className="landing-button-secondary landing-header-button"
+            onClick={() => setLoginOpen(true)}
           >
             Log in
-          </Link>
+          </button>
           <Link
-            to="/login?mode=signup"
+            to="/signup"
             className="landing-button-primary landing-header-button"
           >
             Sign up
@@ -133,15 +138,21 @@ function Landing() {
         <div className="landing-hero-inner">
           <h1 className="landing-title">Job Search 365</h1>
           <p className="landing-tagline">
-            Track every application, interview and offer in one place.
+            Track every application, interview
+            <br />
+            and offer in one place.
           </p>
           <div className="landing-actions">
-            <Link to="/login?mode=signup" className="landing-button-primary">
+            <Link to="/signup" className="landing-button-primary">
               Get started
             </Link>
-            <Link to="/login" className="landing-button-secondary">
+            <button
+              type="button"
+              className="landing-button-secondary"
+              onClick={() => setLoginOpen(true)}
+            >
               Log in
-            </Link>
+            </button>
           </div>
         </div>
       </section>
@@ -161,6 +172,8 @@ function Landing() {
       </main>
 
       <Footer />
+
+      <LoginDialog open={loginOpen} onClose={() => setLoginOpen(false)} />
     </>
   );
 }

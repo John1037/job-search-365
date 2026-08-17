@@ -18,12 +18,17 @@ function DeleteAccountDialog({ open, onClose, onConfirm }) {
     setError(null);
     setDeleting(true);
 
-    const result = await onConfirm();
+    try {
+      const result = await onConfirm();
 
-    setDeleting(false);
-
-    if (result?.error) {
-      setError(result.error);
+      if (result?.error) {
+        setError(result.error);
+      }
+    } catch (err) {
+      console.error('[delete-account] unexpected error:', err);
+      setError(err?.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setDeleting(false);
     }
   }
 

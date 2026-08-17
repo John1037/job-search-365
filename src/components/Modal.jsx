@@ -3,7 +3,9 @@ function Modal({ open, onClose, children }) {
 
   return (
     <div className="confirm-overlay" role="presentation" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()}>{children}</div>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        {children}
+      </div>
     </div>
   );
 }

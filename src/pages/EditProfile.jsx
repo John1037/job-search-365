@@ -167,25 +167,35 @@ function EditProfile() {
   }
 
   async function handleDeleteAccount() {
+    console.log('[delete-account] starting');
+
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
+    console.log('[delete-account] session present:', !!session);
+
     if (!session) return { error: 'Not signed in.' };
 
-    const { error: functionError } = await supabase.functions.invoke(
-      'delete-account',
-      {
+    console.log('[delete-account] invoking edge function');
+
+    const { data: functionData, error: functionError } =
+      await supabase.functions.invoke('delete-account', {
         headers: { Authorization: `Bearer ${session.access_token}` },
-      },
-    );
+      });
+
+    console.log('[delete-account] invoke result:', {
+      functionData,
+      functionError,
+    });
 
     if (functionError) {
       return { error: functionError.message };
     }
 
+    console.log('[delete-account] signing out');
     await supabase.auth.signOut();
-    navigate('/login');
+    navigate('/');
     return {};
   }
 
@@ -292,6 +302,9 @@ function EditProfile() {
         >
           Delete my account
         </button>
+        <p className="field-warning">
+          This will permanently delete ALL of your data. This cannot be undone.
+        </p>
       </section>
 
       <DeleteAccountDialog
