@@ -4,6 +4,7 @@ import { supabase } from '../supabaseClient';
 import PhoneField from '../components/PhoneField';
 import AvatarUpload from '../components/AvatarUpload';
 import DeleteAccountDialog from '../components/DeleteAccountDialog';
+import ChangeEmailDialog from '../components/ChangeEmailDialog';
 import { sortedCountries } from '../data/countries';
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
@@ -25,7 +26,6 @@ function EditProfile() {
   const [fullName, setFullName] = useState('');
   const [shortName, setShortName] = useState('');
   const [email, setEmail] = useState('');
-  const [initialEmail, setInitialEmail] = useState('');
   const [phoneCountry, setPhoneCountry] = useState('GB');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [location, setLocation] = useState('');
@@ -39,6 +39,7 @@ function EditProfile() {
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [changeEmailOpen, setChangeEmailOpen] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -50,7 +51,6 @@ function EditProfile() {
 
       setUserId(user.id);
       setEmail(user.email ?? '');
-      setInitialEmail(user.email ?? '');
 
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -149,20 +149,7 @@ function EditProfile() {
     setLayoutShortName(shortName);
     setLayoutCountry(country);
 
-    if (email !== initialEmail) {
-      const { error: emailError } = await supabase.auth.updateUser({ email });
-      if (emailError) {
-        setError(emailError.message);
-        setSaving(false);
-        return;
-      }
-      setMessage(
-        'Profile saved. Check your inbox to confirm your new email address.',
-      );
-    } else {
-      setMessage('Profile saved.');
-    }
-
+    setMessage('Profile saved.');
     setSaving(false);
   }
 
@@ -235,13 +222,14 @@ function EditProfile() {
         <p className="field-hint">How this app should address you.</p>
 
         <label htmlFor="email">Email address</label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
+        <input id="email" type="email" value={email} disabled />
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => setChangeEmailOpen(true)}
+        >
+          Change email
+        </button>
 
         <label htmlFor="phoneNumber">Phone number</label>
         <PhoneField
@@ -311,6 +299,12 @@ function EditProfile() {
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         onConfirm={handleDeleteAccount}
+      />
+
+      <ChangeEmailDialog
+        open={changeEmailOpen}
+        onClose={() => setChangeEmailOpen(false)}
+        currentEmail={email}
       />
     </div>
   );
