@@ -71,7 +71,7 @@ function ConnectCvDialog({ open, onClose, onSelect, cvWord }) {
                 <div className="item-actions">
                   <button
                     type="button"
-                    className="link-button"
+                    className="button-outline"
                     onClick={() => onSelect(doc)}
                   >
                     Select
@@ -83,7 +83,7 @@ function ConnectCvDialog({ open, onClose, onSelect, cvWord }) {
         )}
 
         <div className="confirm-dialog-actions">
-          <button type="button" className="link-button" onClick={onClose}>
+          <button type="button" className="button-outline" onClick={onClose}>
             Cancel
           </button>
         </div>

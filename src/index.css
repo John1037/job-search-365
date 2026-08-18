@@ -120,21 +120,6 @@ body {
   cursor: default;
 }
 
-.link-button {
-  margin-top: 8px;
-  padding: 0;
-  border: none;
-  background: none;
-  color: var(--accent);
-  font-size: 14px;
-  cursor: pointer;
-  align-self: center;
-}
-
-.link-button:hover {
-  text-decoration: underline;
-}
-
 .form-error {
   color: var(--error);
   font-size: 14px;
@@ -363,8 +348,19 @@ body {
   object-fit: cover;
 }
 
-.avatar-upload-button {
-  margin: 0;
+.button-outline {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.button-outline:hover {
+  background: var(--accent-bg);
 }
 
 .avatar-file-input {
@@ -376,10 +372,87 @@ body {
   margin-top: 12px;
 }
 
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.form-row .form-field {
+  flex: 1 1 140px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .profile-form input:disabled {
   background: var(--border);
   opacity: 0.8;
   cursor: default;
+}
+
+.email-field {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.profile-form .email-field input:disabled {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+  background: var(--border);
+  opacity: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.email-field-change {
+  flex-shrink: 0;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.email-field-change:hover {
+  background: var(--accent-bg);
+}
+
+.salary-field {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.profile-form .salary-field input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.profile-form .salary-field select {
+  flex-shrink: 0;
+  width: 78px;
+  border: none;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  padding: 0 8px;
+  cursor: pointer;
 }
 
 .profile-form input,
@@ -630,10 +703,6 @@ body {
   flex: 0 0 auto;
 }
 
-.item-actions .link-button {
-  margin: 0;
-}
-
 .item-delete {
   color: var(--error);
 }
@@ -691,10 +760,6 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-}
-
-.confirm-dialog-actions .link-button {
-  margin: 0;
 }
 
 .confirm-danger-button {

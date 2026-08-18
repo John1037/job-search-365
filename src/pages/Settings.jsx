@@ -101,7 +101,7 @@ function Settings() {
 
       <button
         type="button"
-        className="link-button"
+        className="button-outline"
         onClick={() => navigate('/main')}
       >
         Back to home

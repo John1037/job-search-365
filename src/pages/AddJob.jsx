@@ -165,7 +165,7 @@ function AddJob() {
           </button>
           <button
             type="button"
-            className="link-button"
+            className="button-outline"
             onClick={() => navigate('/main')}
           >
             Cancel

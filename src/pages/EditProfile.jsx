@@ -222,14 +222,16 @@ function EditProfile() {
         <p className="field-hint">How this app should address you.</p>
 
         <label htmlFor="email">Email address</label>
-        <input id="email" type="email" value={email} disabled />
-        <button
-          type="button"
-          className="link-button"
-          onClick={() => setChangeEmailOpen(true)}
-        >
-          Change email
-        </button>
+        <div className="email-field">
+          <input id="email" type="email" value={email} disabled />
+          <button
+            type="button"
+            className="email-field-change"
+            onClick={() => setChangeEmailOpen(true)}
+          >
+            Change
+          </button>
+        </div>
 
         <label htmlFor="phoneNumber">Phone number</label>
         <PhoneField
@@ -271,7 +273,7 @@ function EditProfile() {
           </button>
           <button
             type="button"
-            className="link-button"
+            className="button-outline"
             onClick={() => navigate('/main')}
           >
             Back to home

@@ -15,6 +15,15 @@ function formatLocalDate(date) {
   return `${year}-${month}-${day}`;
 }
 
+// Date-only arithmetic, done in local time throughout, to avoid the
+// UTC-parse/local-read mismatch that `new Date(dateString)` introduces.
+function addDays(dateStr, days) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return formatLocalDate(date);
+}
+
 function Home() {
   const { shortName, alertWindowDays, country } = useOutletContext();
   const isUS = country === 'US';
@@ -44,23 +53,70 @@ function Home() {
       future.setDate(future.getDate() + windowDays);
       const futureStr = formatLocalDate(future);
 
-      const { data, error } = await supabase
-        .from('events')
-        .select(
-          'id, event_name, event_type, event_date, event_time, job_id, jobs(job_title, employer)',
-        )
-        .in('event_name', UPCOMING_EVENT_NAMES)
-        .gte('event_date', todayStr)
-        .lte('event_date', futureStr)
-        .order('event_date', { ascending: true })
-        .order('event_time', { ascending: true });
+      const [eventsResult, acknowledgedResult] = await Promise.all([
+        supabase
+          .from('events')
+          .select(
+            'id, event_name, event_type, event_date, event_time, job_id, jobs(job_title, employer)',
+          )
+          .in('event_name', UPCOMING_EVENT_NAMES)
+          .gte('event_date', todayStr)
+          .lte('event_date', futureStr),
+        supabase
+          .from('jobs')
+          .select('id, job_title, employer, expected_response_date')
+          .eq('is_closed', false)
+          .eq('status', 'Application acknowledged')
+          .not('expected_response_date', 'is', null),
+      ]);
 
-      if (error) {
-        setAlertsError(error.message);
-      } else {
-        setAlerts(data);
+      if (eventsResult.error) {
+        setAlertsError(eventsResult.error.message);
+        setLoadingAlerts(false);
+        return;
       }
 
+      if (acknowledgedResult.error) {
+        setAlertsError(acknowledgedResult.error.message);
+        setLoadingAlerts(false);
+        return;
+      }
+
+      const eventAlerts = eventsResult.data.map((event) => ({
+        id: `event-${event.id}`,
+        jobId: event.job_id,
+        date: event.event_date,
+        time: event.event_time,
+        primary:
+          event.event_name +
+          (event.event_type ? ` — ${event.event_type}` : ''),
+        subtitle: event.jobs
+          ? `${event.jobs.job_title} — ${event.jobs.employer}`
+          : null,
+      }));
+
+      // A job sitting at "Application acknowledged" gets auto-closed as
+      // unsuccessful 7 days past the employer's expected response date if
+      // nothing further has been logged by then — flag it here in advance.
+      const closingAlerts = acknowledgedResult.data
+        .filter((job) => job.expected_response_date <= todayStr)
+        .map((job) => ({
+          id: `close-${job.id}`,
+          jobId: job.id,
+          date: addDays(job.expected_response_date, 7),
+          time: null,
+          primary: 'Assumed unsuccessful',
+          subtitle: `${job.job_title} — ${job.employer}`,
+          closable: true,
+        }))
+        .filter((alert) => alert.date <= futureStr);
+
+      const combined = [...eventAlerts, ...closingAlerts].sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return (a.time ?? '').localeCompare(b.time ?? '');
+      });
+
+      setAlerts(combined);
       setLoadingAlerts(false);
     }
 
@@ -115,6 +171,23 @@ function Home() {
     loadInterested();
   }, []);
 
+  async function handleCloseJob(jobId) {
+    setAlertsError(null);
+
+    const { error } = await supabase
+      .from('jobs')
+      .update({ is_closed: true, updated_at: new Date().toISOString() })
+      .eq('id', jobId);
+
+    if (error) {
+      setAlertsError(error.message);
+      return;
+    }
+
+    setAlerts((current) => current.filter((alert) => alert.jobId !== jobId));
+    setApplications((current) => current.filter((job) => job.id !== jobId));
+  }
+
   return (
     <div className="home-page">
       <h1 className="home-greeting">Hi {displayName}, here's what's going on</h1>
@@ -132,25 +205,33 @@ function Home() {
           </p>
         ) : (
           <ul className="item-list alerts-list">
-            {alerts.map((event) => (
-              <li key={event.id} className="item-row">
+            {alerts.map((alert) => (
+              <li key={alert.id} className="item-row">
                 <span className="item-name">
                   <Link
-                    to={`/jobs/${event.job_id}`}
+                    to={`/jobs/${alert.jobId}`}
                     className="item-name-primary item-name-link"
                   >
-                    {event.event_name}
-                    {event.event_type ? ` — ${event.event_type}` : ''}
+                    {alert.primary}
                   </Link>
-                  {event.jobs && (
-                    <span className="item-subtext">
-                      {event.jobs.job_title} — {event.jobs.employer}
-                    </span>
+                  {alert.subtitle && (
+                    <span className="item-subtext">{alert.subtitle}</span>
                   )}
                 </span>
                 <span className="item-meta alert-datetime">
-                  {formatEventDateTime(event.event_date, event.event_time, isUS)}
+                  {formatEventDateTime(alert.date, alert.time, isUS)}
                 </span>
+                {alert.closable && (
+                  <div className="item-actions">
+                    <button
+                      type="button"
+                      className="button-outline"
+                      onClick={() => handleCloseJob(alert.jobId)}
+                    >
+                      Close job
+                    </button>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

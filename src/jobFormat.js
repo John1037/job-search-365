@@ -1,5 +1,5 @@
 export const JOB_LIST_COLUMNS =
-  'id, job_title, employer, status, salary_min, salary_max, salary_type, salary_basis, location_type, location';
+  'id, job_title, employer, status, salary_min, salary_max, salary_currency, salary_type, salary_basis, location_type, location';
 
 // Of the fixed event names, only these describe something still ahead —
 // the rest ("Applied", "Interview completed", "Offer received") record
@@ -27,10 +27,12 @@ export function formatSalary(job) {
   const max =
     job.salary_max != null ? Number(job.salary_max).toLocaleString() : null;
   const range = min && max ? `${min}–${max}` : (min ?? max);
-  const suffix = SALARY_TYPE_LABELS[job.salary_type] ?? '';
+  const typeLabel = SALARY_TYPE_LABELS[job.salary_type];
+  const suffix = typeLabel ? ` ${typeLabel}` : '';
   const basis = job.salary_basis === 'ote' ? ' OTE' : '';
+  const currency = job.salary_currency ? `${job.salary_currency} ` : '';
 
-  return `${range}${suffix}${basis}`;
+  return `${currency}${range}${suffix}${basis}`;
 }
 
 export function formatLocation(job) {

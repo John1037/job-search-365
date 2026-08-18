@@ -61,7 +61,7 @@ function DescribeDocumentDialog({ open, onClose, onSubmit }) {
         <div className="confirm-dialog-actions">
           <button
             type="button"
-            className="link-button"
+            className="button-outline"
             onClick={resetAndClose}
             disabled={saving}
           >

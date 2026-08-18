@@ -3,12 +3,8 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import AddEventDialog from '../components/AddEventDialog';
 import ConnectCvDialog from '../components/ConnectCvDialog';
-import {
-  formatSalary,
-  formatLocation,
-  formatEventDateTime,
-  formatStatusDate,
-} from '../jobFormat';
+import { formatEventDateTime, formatStatusDate } from '../jobFormat';
+import { sortedCurrencies } from '../data/currencies';
 
 function JobDetail() {
   const { id } = useParams();
@@ -21,6 +17,16 @@ function JobDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [jobTitle, setJobTitle] = useState('');
+  const [employer, setEmployer] = useState('');
+  const [salaryMin, setSalaryMin] = useState('');
+  const [salaryMax, setSalaryMax] = useState('');
+  const [salaryCurrency, setSalaryCurrency] = useState('GBP');
+  const [salaryType, setSalaryType] = useState('annual');
+  const [salaryBasis, setSalaryBasis] = useState('flat');
+  const [hoursPerWeek, setHoursPerWeek] = useState('');
+  const [locationType, setLocationType] = useState('');
+  const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
   const [postingUrl, setPostingUrl] = useState('');
   const [contactPerson, setContactPerson] = useState('');
@@ -66,6 +72,16 @@ function JobDetail() {
       }
 
       setJob(jobData);
+      setJobTitle(jobData.job_title ?? '');
+      setEmployer(jobData.employer ?? '');
+      setSalaryMin(jobData.salary_min ?? '');
+      setSalaryMax(jobData.salary_max ?? '');
+      setSalaryCurrency(jobData.salary_currency ?? 'GBP');
+      setSalaryType(jobData.salary_type ?? 'annual');
+      setSalaryBasis(jobData.salary_basis ?? 'flat');
+      setHoursPerWeek(jobData.hours_per_week ?? '');
+      setLocationType(jobData.location_type ?? '');
+      setLocation(jobData.location ?? '');
       setDescription(jobData.description ?? '');
       setPostingUrl(jobData.posting_url ?? '');
       setContactPerson(jobData.contact_person ?? '');
@@ -107,16 +123,28 @@ function JobDetail() {
     setSaveMessage(null);
     setError(null);
 
+    const updates = {
+      job_title: jobTitle,
+      employer,
+      salary_min: salaryMin === '' ? null : Number(salaryMin),
+      salary_max: salaryMax === '' ? null : Number(salaryMax),
+      salary_currency: salaryCurrency,
+      salary_type: salaryType,
+      salary_basis: salaryBasis,
+      hours_per_week: hoursPerWeek === '' ? null : Number(hoursPerWeek),
+      location_type: locationType === '' ? null : locationType,
+      location: locationType === 'remote' ? null : location || null,
+      description: description || null,
+      posting_url: postingUrl || null,
+      contact_person: contactPerson || null,
+      application_method: applicationMethod || null,
+      notes: notes || null,
+      updated_at: new Date().toISOString(),
+    };
+
     const { error: updateError } = await supabase
       .from('jobs')
-      .update({
-        description: description || null,
-        posting_url: postingUrl || null,
-        contact_person: contactPerson || null,
-        application_method: applicationMethod || null,
-        notes: notes || null,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq('id', id);
 
     setSaving(false);
@@ -126,10 +154,17 @@ function JobDetail() {
       return;
     }
 
+    setJob((j) => ({ ...j, ...updates }));
     setSaveMessage('Details saved.');
   }
 
   async function handleAddEvent(eventInput) {
+    const {
+      expected_response_date,
+      application_method: newApplicationMethod,
+      ...eventFields
+    } = eventInput;
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -141,7 +176,7 @@ function JobDetail() {
       .insert({
         job_id: id,
         user_id: user.id,
-        ...eventInput,
+        ...eventFields,
       })
       .select('id, event_name, event_type, event_date, event_time, location')
       .single();
@@ -150,18 +185,32 @@ function JobDetail() {
 
     const now = new Date().toISOString();
 
+    const jobUpdates = {
+      status: eventInput.event_name,
+      status_updated_at: now,
+      updated_at: now,
+    };
+
+    if (eventInput.event_name === 'Application acknowledged') {
+      jobUpdates.expected_response_date = expected_response_date || null;
+    }
+
+    if (eventInput.event_name === 'Applied') {
+      jobUpdates.application_method = newApplicationMethod || null;
+    }
+
     const { error: statusError } = await supabase
       .from('jobs')
-      .update({
-        status: eventInput.event_name,
-        status_updated_at: now,
-        updated_at: now,
-      })
+      .update(jobUpdates)
       .eq('id', id);
 
     if (statusError) return { error: statusError.message };
 
-    setJob((j) => ({ ...j, status: eventInput.event_name, status_updated_at: now }));
+    setJob((j) => ({ ...j, ...jobUpdates }));
+
+    if (eventInput.event_name === 'Applied') {
+      setApplicationMethod(newApplicationMethod || '');
+    }
 
     setEvents((evts) =>
       [...evts, data].sort((a, b) => {
@@ -235,7 +284,7 @@ function JobDetail() {
         {error && <p className="form-error">{error}</p>}
         <button
           type="button"
-          className="link-button"
+          className="button-outline"
           onClick={() => navigate('/jobs')}
         >
           Back to jobs
@@ -244,12 +293,16 @@ function JobDetail() {
     );
   }
 
-  const salary = formatSalary(job);
-  const location = formatLocation(job);
   const eventNameOptions =
     job.status === 'Interested'
       ? ['Applied']
-      : ['Interview scheduled', 'Interview completed', 'Offer received'];
+      : [
+          'Application acknowledged',
+          'Interview scheduled',
+          'Interview completed',
+          'Offer received',
+          'Other',
+        ];
 
   return (
     <div className="job-detail-page">
@@ -278,30 +331,157 @@ function JobDetail() {
                 <dd>{job.application_closing_date}</dd>
               </div>
             )}
-            {salary && (
-              <div>
-                <dt>Salary</dt>
-                <dd>{salary}</dd>
-              </div>
-            )}
-            {job.hours_per_week != null && (
-              <div>
-                <dt>Hours per week</dt>
-                <dd>{job.hours_per_week}</dd>
-              </div>
-            )}
-            {location && (
-              <div>
-                <dt>Location</dt>
-                <dd>{location}</dd>
-              </div>
-            )}
           </dl>
 
           <form
             className="profile-form job-detail-form"
             onSubmit={handleSaveDetails}
           >
+            <div className="form-row">
+              <div className="form-field">
+                <label htmlFor="jobTitle">Job title</label>
+                <input
+                  id="jobTitle"
+                  type="text"
+                  value={jobTitle}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="employer">Employer</label>
+                <input
+                  id="employer"
+                  type="text"
+                  value={employer}
+                  onChange={(e) => setEmployer(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-field">
+                <label htmlFor="salaryMin">Salary (min)</label>
+                <div className="salary-field">
+                  <input
+                    id="salaryMin"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={salaryMin}
+                    onChange={(e) => setSalaryMin(e.target.value)}
+                  />
+                  <select
+                    aria-label="Currency"
+                    value={salaryCurrency}
+                    onChange={(e) => setSalaryCurrency(e.target.value)}
+                  >
+                    {sortedCurrencies.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="salaryMax">Salary (max)</label>
+                <div className="salary-field">
+                  <input
+                    id="salaryMax"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={salaryMax}
+                    onChange={(e) => setSalaryMax(e.target.value)}
+                  />
+                  <select
+                    aria-label="Currency"
+                    value={salaryCurrency}
+                    onChange={(e) => setSalaryCurrency(e.target.value)}
+                  >
+                    {sortedCurrencies.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="salaryType">Salary type</label>
+                <select
+                  id="salaryType"
+                  className="profile-select"
+                  value={salaryType}
+                  onChange={(e) => setSalaryType(e.target.value)}
+                >
+                  <option value="annual">Annual</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="hourly">Hourly</option>
+                </select>
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="salaryBasis">Salary basis</label>
+                <select
+                  id="salaryBasis"
+                  className="profile-select"
+                  value={salaryBasis}
+                  onChange={(e) => setSalaryBasis(e.target.value)}
+                >
+                  <option value="flat">Flat</option>
+                  <option value="ote">OTE</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-field">
+                <label htmlFor="hoursPerWeek">Hours per week</label>
+                <input
+                  id="hoursPerWeek"
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={hoursPerWeek}
+                  onChange={(e) => setHoursPerWeek(e.target.value)}
+                />
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="locationType">Location type</label>
+                <select
+                  id="locationType"
+                  className="profile-select"
+                  value={locationType}
+                  onChange={(e) => setLocationType(e.target.value)}
+                >
+                  <option value="">Not specified</option>
+                  <option value="on_site">On-site</option>
+                  <option value="hybrid">Hybrid</option>
+                  <option value="remote">Remote</option>
+                </select>
+              </div>
+
+              {locationType && locationType !== 'remote' && (
+                <div className="form-field">
+                  <label htmlFor="location">Location</label>
+                  <input
+                    id="location"
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+
             <label htmlFor="description">Job description</label>
             <textarea
               id="description"
@@ -436,7 +616,7 @@ function JobDetail() {
 
       <button
         type="button"
-        className="link-button"
+        className="button-outline"
         onClick={() => navigate('/jobs')}
       >
         Back to jobs
@@ -447,6 +627,7 @@ function JobDetail() {
         onClose={() => setAddEventOpen(false)}
         onSubmit={handleAddEvent}
         eventNameOptions={eventNameOptions}
+        currentApplicationMethod={applicationMethod}
       />
 
       <ConnectCvDialog

@@ -121,7 +121,7 @@ function ManageJobs({ closed = false }) {
               {closed ? (
                 <button
                   type="button"
-                  className="link-button"
+                  className="button-outline"
                   onClick={() => handleReopenJob(job)}
                 >
                   Reopen
@@ -129,7 +129,7 @@ function ManageJobs({ closed = false }) {
               ) : (
                 <button
                   type="button"
-                  className="link-button"
+                  className="button-outline"
                   onClick={() => handleCloseJob(job)}
                 >
                   Close job
@@ -137,7 +137,7 @@ function ManageJobs({ closed = false }) {
               )}
               <button
                 type="button"
-                className="link-button item-delete"
+                className="button-outline item-delete"
                 onClick={() => setJobPendingDelete(job)}
               >
                 Delete
@@ -149,7 +149,7 @@ function ManageJobs({ closed = false }) {
 
       <button
         type="button"
-        className="link-button"
+        className="button-outline"
         onClick={() => navigate('/main')}
       >
         Back to home

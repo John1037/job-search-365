@@ -99,7 +99,7 @@ function SignupDialog({ open, onClose }) {
         <div className="confirm-dialog-actions">
           <button
             type="button"
-            className="link-button"
+            className="button-outline"
             onClick={resetAndClose}
             disabled={loading}
           >

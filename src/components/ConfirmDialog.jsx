@@ -19,7 +19,7 @@ function ConfirmDialog({
         <h2 id="confirm-dialog-title">{title}</h2>
         <p>{message}</p>
         <div className="confirm-dialog-actions">
-          <button type="button" className="link-button" onClick={onCancel}>
+          <button type="button" className="button-outline" onClick={onCancel}>
             Cancel
           </button>
           <button

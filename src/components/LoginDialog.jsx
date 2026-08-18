@@ -106,7 +106,7 @@ function LoginDialog({ open, onClose }) {
         {mode === 'sign-in' ? (
           <button
             type="button"
-            className="link-button"
+            className="button-outline"
             onClick={() => switchMode('forgot-password')}
           >
             Forgot password?
@@ -114,7 +114,7 @@ function LoginDialog({ open, onClose }) {
         ) : (
           <button
             type="button"
-            className="link-button"
+            className="button-outline"
             onClick={() => switchMode('sign-in')}
           >
             Back to log in
@@ -124,7 +124,7 @@ function LoginDialog({ open, onClose }) {
         <div className="confirm-dialog-actions">
           <button
             type="button"
-            className="link-button"
+            className="button-outline"
             onClick={resetAndClose}
             disabled={loading}
           >

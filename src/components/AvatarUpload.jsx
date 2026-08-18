@@ -31,7 +31,7 @@ function AvatarUpload({ previewUrl, onFileSelected, error }) {
       <div>
         <button
           type="button"
-          className="link-button avatar-upload-button"
+          className="button-outline"
           onClick={() => fileInputRef.current?.click()}
         >
           {previewUrl ? 'Change photo' : 'Upload photo'}

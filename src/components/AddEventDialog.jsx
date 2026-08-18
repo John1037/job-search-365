@@ -1,37 +1,87 @@
 import { useState } from 'react';
 import Modal from './Modal';
 
-function AddEventDialog({ open, onClose, onSubmit, eventNameOptions }) {
+const INTERVIEW_EVENT_NAMES = ['Interview scheduled', 'Interview completed'];
+const INTERVIEW_TYPE_OPTIONS = ['AI', 'Remote', 'In person'];
+
+function todayDateString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function AddEventDialog({
+  open,
+  onClose,
+  onSubmit,
+  eventNameOptions,
+  currentApplicationMethod,
+}) {
   const [eventName, setEventName] = useState('');
+  const [applicationMethod, setApplicationMethod] = useState('');
+  const [employerResponseDate, setEmployerResponseDate] = useState('');
   const [eventType, setEventType] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
-  const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  function resetAndClose() {
+  function resetFields() {
     setEventName('');
+    setApplicationMethod('');
+    setEmployerResponseDate('');
     setEventType('');
     setEventDate('');
     setEventTime('');
-    setLocation('');
     setError(null);
+  }
+
+  function resetAndClose() {
+    resetFields();
     onClose();
+  }
+
+  function handleEventNameChange(name) {
+    setEventName(name);
+    setError(null);
+
+    if (name === 'Applied') {
+      setApplicationMethod(currentApplicationMethod ?? '');
+      setEventDate(todayDateString());
+    } else if (name === 'Application acknowledged') {
+      setEmployerResponseDate('');
+      setEventDate(todayDateString());
+    } else if (INTERVIEW_EVENT_NAMES.includes(name)) {
+      setEventType('');
+      setEventDate('');
+      setEventTime('');
+    } else {
+      // Offer received, Other — no extra fields defined yet.
+      setEventDate(todayDateString());
+    }
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+
+    if (INTERVIEW_EVENT_NAMES.includes(eventName) && !eventType) {
+      setError('Please select an interview type.');
+      return;
+    }
+
     setSaving(true);
 
-    const result = await onSubmit({
-      event_name: eventName,
-      event_type: eventType || null,
-      event_date: eventDate,
-      event_time: eventTime || null,
-      location: location || null,
-    });
+    const payload = { event_name: eventName, event_date: eventDate };
+
+    if (eventName === 'Applied') {
+      payload.application_method = applicationMethod || null;
+    } else if (eventName === 'Application acknowledged') {
+      payload.expected_response_date = employerResponseDate || null;
+    } else if (INTERVIEW_EVENT_NAMES.includes(eventName)) {
+      payload.event_type = eventType;
+      payload.event_time = eventTime || null;
+    }
+
+    const result = await onSubmit(payload);
 
     setSaving(false);
 
@@ -40,11 +90,7 @@ function AddEventDialog({ open, onClose, onSubmit, eventNameOptions }) {
       return;
     }
 
-    setEventName('');
-    setEventType('');
-    setEventDate('');
-    setEventTime('');
-    setLocation('');
+    resetFields();
   }
 
   return (
@@ -60,7 +106,7 @@ function AddEventDialog({ open, onClose, onSubmit, eventNameOptions }) {
           id="eventName"
           className="profile-select"
           value={eventName}
-          onChange={(e) => setEventName(e.target.value)}
+          onChange={(e) => handleEventNameChange(e.target.value)}
           required
         >
           <option value="" disabled>
@@ -73,44 +119,93 @@ function AddEventDialog({ open, onClose, onSubmit, eventNameOptions }) {
           ))}
         </select>
 
-        <label htmlFor="eventType">Type</label>
-        <input
-          id="eventType"
-          type="text"
-          placeholder="e.g. Online, In person, AI"
-          value={eventType}
-          onChange={(e) => setEventType(e.target.value)}
-        />
+        {eventName === 'Applied' && (
+          <>
+            <label htmlFor="applicationMethod">Application method</label>
+            <input
+              id="applicationMethod"
+              type="text"
+              value={applicationMethod}
+              onChange={(e) => setApplicationMethod(e.target.value)}
+            />
 
-        <label htmlFor="eventDate">Date</label>
-        <input
-          id="eventDate"
-          type="date"
-          value={eventDate}
-          onChange={(e) => setEventDate(e.target.value)}
-          required
-        />
+            <label htmlFor="eventDate">Date</label>
+            <input
+              id="eventDate"
+              type="date"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              required
+            />
+          </>
+        )}
 
-        <label htmlFor="eventTime">Time</label>
-        <input
-          id="eventTime"
-          type="time"
-          value={eventTime}
-          onChange={(e) => setEventTime(e.target.value)}
-        />
+        {eventName === 'Application acknowledged' && (
+          <>
+            <label htmlFor="employerResponseDate">
+              Employer response date (optional)
+            </label>
+            <input
+              id="employerResponseDate"
+              type="date"
+              value={employerResponseDate}
+              onChange={(e) => setEmployerResponseDate(e.target.value)}
+            />
+            <p className="field-hint">
+              If the employer gave a timeframe, we'll assume the application
+              was unsuccessful and close it if nothing's logged within 7 days
+              of that date.
+            </p>
+          </>
+        )}
 
-        <label htmlFor="eventLocation">Location</label>
-        <input
-          id="eventLocation"
-          type="text"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-        />
+        {INTERVIEW_EVENT_NAMES.includes(eventName) && (
+          <>
+            <label htmlFor="eventType">Type</label>
+            <select
+              id="eventType"
+              className="profile-select"
+              value={eventType}
+              onChange={(e) => setEventType(e.target.value)}
+              required
+            >
+              <option value="" disabled>
+                Select a type
+              </option>
+              {INTERVIEW_TYPE_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+
+            <label htmlFor="eventDate">Date</label>
+            <input
+              id="eventDate"
+              type="date"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              required
+            />
+
+            <label htmlFor="eventTime">Time</label>
+            <input
+              id="eventTime"
+              type="time"
+              value={eventTime}
+              onChange={(e) => setEventTime(e.target.value)}
+            />
+          </>
+        )}
+
+        {(eventName === 'Offer received' || eventName === 'Other') && (
+          <p className="field-hint">No additional details needed yet.</p>
+        )}
 
         {error && <p className="form-error">{error}</p>}
 
         <div className="confirm-dialog-actions">
-          <button type="button" className="link-button" onClick={resetAndClose}>
+          <button type="button" className="button-outline" onClick={resetAndClose}>
             Cancel
           </button>
           <button type="submit" className="button-positive" disabled={saving}>

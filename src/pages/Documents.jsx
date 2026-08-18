@@ -235,7 +235,7 @@ function Documents() {
         <p>Unknown document category.</p>
         <button
           type="button"
-          className="link-button"
+          className="button-outline"
           onClick={() => navigate('/main')}
         >
           Back to home
@@ -291,7 +291,7 @@ function Documents() {
                 ) : (
                   <button
                     type="button"
-                    className="link-button"
+                    className="button-outline"
                     onClick={() => handleSetDefault(doc)}
                   >
                     Set as default
@@ -299,14 +299,14 @@ function Documents() {
                 )}
                 <button
                   type="button"
-                  className="link-button"
+                  className="button-outline"
                   onClick={() => handleView(doc)}
                 >
                   View
                 </button>
                 <button
                   type="button"
-                  className="link-button item-delete"
+                  className="button-outline item-delete"
                   onClick={() => setDocPendingDelete(doc)}
                 >
                   Delete
@@ -319,7 +319,7 @@ function Documents() {
 
       <button
         type="button"
-        className="link-button"
+        className="button-outline"
         onClick={() => navigate('/main')}
       >
         Back to home
