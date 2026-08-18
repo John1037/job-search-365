@@ -453,6 +453,38 @@ body {
   border-radius: 0;
 }
 
+.url-field {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.profile-form .url-field input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.url-field-open {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-left: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.url-field-open:hover {
+  background: var(--accent-bg);
+}
+
 .profile-form .salary-field select {
   flex-shrink: 0;
   width: 78px;

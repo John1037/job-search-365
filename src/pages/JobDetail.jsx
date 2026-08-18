@@ -520,12 +520,24 @@ function JobDetail() {
             />
 
             <label htmlFor="postingUrl">Job posting URL</label>
-            <input
-              id="postingUrl"
-              type="url"
-              value={postingUrl}
-              onChange={(e) => setPostingUrl(e.target.value)}
-            />
+            <div className="url-field">
+              <input
+                id="postingUrl"
+                type="url"
+                value={postingUrl}
+                onChange={(e) => setPostingUrl(e.target.value)}
+              />
+              {postingUrl && (
+                <a
+                  href={postingUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="url-field-open"
+                >
+                  Open
+                </a>
+              )}
+            </div>
 
             <label htmlFor="contactPerson">Contact person</label>
             <input

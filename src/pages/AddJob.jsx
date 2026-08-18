@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { sortedCurrencies } from '../data/currencies';
 
 function AddJob() {
   const navigate = useNavigate();
@@ -9,8 +10,10 @@ function AddJob() {
   const [employer, setEmployer] = useState('');
   const [salaryMin, setSalaryMin] = useState('');
   const [salaryMax, setSalaryMax] = useState('');
+  const [salaryCurrency, setSalaryCurrency] = useState('GBP');
   const [salaryType, setSalaryType] = useState('annual');
   const [salaryBasis, setSalaryBasis] = useState('flat');
+  const [employmentType, setEmploymentType] = useState('');
   const [hoursPerWeek, setHoursPerWeek] = useState('');
   const [locationType, setLocationType] = useState('');
   const [location, setLocation] = useState('');
@@ -37,9 +40,14 @@ function AddJob() {
       employer,
       salary_min: salaryMin === '' ? null : Number(salaryMin),
       salary_max: salaryMax === '' ? null : Number(salaryMax),
+      salary_currency: salaryCurrency,
       salary_type: salaryType,
       salary_basis: salaryBasis,
-      hours_per_week: hoursPerWeek === '' ? null : Number(hoursPerWeek),
+      employment_type: employmentType === '' ? null : employmentType,
+      hours_per_week:
+        employmentType === 'part_time' && hoursPerWeek !== ''
+          ? Number(hoursPerWeek)
+          : null,
       location_type: locationType === '' ? null : locationType,
       location: locationType === 'remote' ? null : location || null,
       status: 'Interested',
@@ -79,24 +87,50 @@ function AddJob() {
         />
 
         <label htmlFor="salaryMin">Salary (min)</label>
-        <input
-          id="salaryMin"
-          type="number"
-          min="0"
-          step="0.01"
-          value={salaryMin}
-          onChange={(e) => setSalaryMin(e.target.value)}
-        />
+        <div className="salary-field">
+          <input
+            id="salaryMin"
+            type="number"
+            min="0"
+            step="0.01"
+            value={salaryMin}
+            onChange={(e) => setSalaryMin(e.target.value)}
+          />
+          <select
+            aria-label="Currency"
+            value={salaryCurrency}
+            onChange={(e) => setSalaryCurrency(e.target.value)}
+          >
+            {sortedCurrencies.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <label htmlFor="salaryMax">Salary (max)</label>
-        <input
-          id="salaryMax"
-          type="number"
-          min="0"
-          step="0.01"
-          value={salaryMax}
-          onChange={(e) => setSalaryMax(e.target.value)}
-        />
+        <div className="salary-field">
+          <input
+            id="salaryMax"
+            type="number"
+            min="0"
+            step="0.01"
+            value={salaryMax}
+            onChange={(e) => setSalaryMax(e.target.value)}
+          />
+          <select
+            aria-label="Currency"
+            value={salaryCurrency}
+            onChange={(e) => setSalaryCurrency(e.target.value)}
+          >
+            {sortedCurrencies.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <label htmlFor="salaryType">Salary type</label>
         <select
@@ -122,15 +156,34 @@ function AddJob() {
           <option value="ote">OTE</option>
         </select>
 
-        <label htmlFor="hoursPerWeek">Hours per week</label>
-        <input
-          id="hoursPerWeek"
-          type="number"
-          min="0"
-          step="0.5"
-          value={hoursPerWeek}
-          onChange={(e) => setHoursPerWeek(e.target.value)}
-        />
+        <label htmlFor="employmentType">Employment type</label>
+        <select
+          id="employmentType"
+          className="profile-select"
+          value={employmentType}
+          onChange={(e) => {
+            setEmploymentType(e.target.value);
+            if (e.target.value !== 'part_time') setHoursPerWeek('');
+          }}
+        >
+          <option value="">Not specified</option>
+          <option value="full_time">Full time</option>
+          <option value="part_time">Part time</option>
+        </select>
+
+        {employmentType === 'part_time' && (
+          <>
+            <label htmlFor="hoursPerWeek">Hours per week</label>
+            <input
+              id="hoursPerWeek"
+              type="number"
+              min="0"
+              step="0.5"
+              value={hoursPerWeek}
+              onChange={(e) => setHoursPerWeek(e.target.value)}
+            />
+          </>
+        )}
 
         <label htmlFor="locationType">Location type</label>
         <select
