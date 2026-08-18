@@ -24,6 +24,7 @@ function JobDetail() {
   const [salaryCurrency, setSalaryCurrency] = useState('GBP');
   const [salaryType, setSalaryType] = useState('annual');
   const [salaryBasis, setSalaryBasis] = useState('flat');
+  const [employmentType, setEmploymentType] = useState('');
   const [hoursPerWeek, setHoursPerWeek] = useState('');
   const [locationType, setLocationType] = useState('');
   const [location, setLocation] = useState('');
@@ -79,6 +80,7 @@ function JobDetail() {
       setSalaryCurrency(jobData.salary_currency ?? 'GBP');
       setSalaryType(jobData.salary_type ?? 'annual');
       setSalaryBasis(jobData.salary_basis ?? 'flat');
+      setEmploymentType(jobData.employment_type ?? '');
       setHoursPerWeek(jobData.hours_per_week ?? '');
       setLocationType(jobData.location_type ?? '');
       setLocation(jobData.location ?? '');
@@ -131,7 +133,11 @@ function JobDetail() {
       salary_currency: salaryCurrency,
       salary_type: salaryType,
       salary_basis: salaryBasis,
-      hours_per_week: hoursPerWeek === '' ? null : Number(hoursPerWeek),
+      employment_type: employmentType === '' ? null : employmentType,
+      hours_per_week:
+        employmentType === 'part_time' && hoursPerWeek !== ''
+          ? Number(hoursPerWeek)
+          : null,
       location_type: locationType === '' ? null : locationType,
       location: locationType === 'remote' ? null : location || null,
       description: description || null,
@@ -319,20 +325,16 @@ function JobDetail() {
       </div>
 
       <div className="job-detail-layout">
-        <div className="job-detail-main">
+        {job.application_closing_date && (
           <dl className="job-detail-summary">
             <div>
-              <dt>Date logged</dt>
-              <dd>{job.date_logged}</dd>
+              <dt>Application closes</dt>
+              <dd>{job.application_closing_date}</dd>
             </div>
-            {job.application_closing_date && (
-              <div>
-                <dt>Application closes</dt>
-                <dd>{job.application_closing_date}</dd>
-              </div>
-            )}
           </dl>
+        )}
 
+        <div className="job-detail-main">
           <form
             className="profile-form job-detail-form"
             onSubmit={handleSaveDetails}
@@ -362,124 +364,151 @@ function JobDetail() {
             </div>
 
             <div className="form-row">
-              <div className="form-field">
-                <label htmlFor="salaryMin">Salary (min)</label>
-                <div className="salary-field">
-                  <input
-                    id="salaryMin"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={salaryMin}
-                    onChange={(e) => setSalaryMin(e.target.value)}
-                  />
-                  <select
-                    aria-label="Currency"
-                    value={salaryCurrency}
-                    onChange={(e) => setSalaryCurrency(e.target.value)}
-                  >
-                    {sortedCurrencies.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.code}
-                      </option>
-                    ))}
-                  </select>
+              <div className="form-row-pair">
+                <div className="form-field">
+                  <label htmlFor="salaryMin">Salary (min)</label>
+                  <div className="salary-field">
+                    <input
+                      id="salaryMin"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={salaryMin}
+                      onChange={(e) => setSalaryMin(e.target.value)}
+                    />
+                    <select
+                      aria-label="Currency"
+                      value={salaryCurrency}
+                      onChange={(e) => setSalaryCurrency(e.target.value)}
+                    >
+                      {sortedCurrencies.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="form-field">
+                  <label htmlFor="salaryMax">Salary (max)</label>
+                  <div className="salary-field">
+                    <input
+                      id="salaryMax"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={salaryMax}
+                      onChange={(e) => setSalaryMax(e.target.value)}
+                    />
+                    <select
+                      aria-label="Currency"
+                      value={salaryCurrency}
+                      onChange={(e) => setSalaryCurrency(e.target.value)}
+                    >
+                      {sortedCurrencies.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.code}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              <div className="form-field">
-                <label htmlFor="salaryMax">Salary (max)</label>
-                <div className="salary-field">
-                  <input
-                    id="salaryMax"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={salaryMax}
-                    onChange={(e) => setSalaryMax(e.target.value)}
-                  />
+              <div className="form-row-pair">
+                <div className="form-field">
+                  <label htmlFor="salaryType">Salary type</label>
                   <select
-                    aria-label="Currency"
-                    value={salaryCurrency}
-                    onChange={(e) => setSalaryCurrency(e.target.value)}
+                    id="salaryType"
+                    className="profile-select"
+                    value={salaryType}
+                    onChange={(e) => setSalaryType(e.target.value)}
                   >
-                    {sortedCurrencies.map((c) => (
-                      <option key={c.code} value={c.code}>
-                        {c.code}
-                      </option>
-                    ))}
+                    <option value="annual">Annual</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="hourly">Hourly</option>
                   </select>
                 </div>
-              </div>
 
-              <div className="form-field">
-                <label htmlFor="salaryType">Salary type</label>
-                <select
-                  id="salaryType"
-                  className="profile-select"
-                  value={salaryType}
-                  onChange={(e) => setSalaryType(e.target.value)}
-                >
-                  <option value="annual">Annual</option>
-                  <option value="monthly">Monthly</option>
-                  <option value="weekly">Weekly</option>
-                  <option value="hourly">Hourly</option>
-                </select>
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="salaryBasis">Salary basis</label>
-                <select
-                  id="salaryBasis"
-                  className="profile-select"
-                  value={salaryBasis}
-                  onChange={(e) => setSalaryBasis(e.target.value)}
-                >
-                  <option value="flat">Flat</option>
-                  <option value="ote">OTE</option>
-                </select>
+                <div className="form-field">
+                  <label htmlFor="salaryBasis">Salary basis</label>
+                  <select
+                    id="salaryBasis"
+                    className="profile-select"
+                    value={salaryBasis}
+                    onChange={(e) => setSalaryBasis(e.target.value)}
+                  >
+                    <option value="flat">Flat</option>
+                    <option value="ote">OTE</option>
+                  </select>
+                </div>
               </div>
             </div>
 
             <div className="form-row">
-              <div className="form-field">
-                <label htmlFor="hoursPerWeek">Hours per week</label>
-                <input
-                  id="hoursPerWeek"
-                  type="number"
-                  min="0"
-                  step="0.5"
-                  value={hoursPerWeek}
-                  onChange={(e) => setHoursPerWeek(e.target.value)}
-                />
-              </div>
-
-              <div className="form-field">
-                <label htmlFor="locationType">Location type</label>
-                <select
-                  id="locationType"
-                  className="profile-select"
-                  value={locationType}
-                  onChange={(e) => setLocationType(e.target.value)}
-                >
-                  <option value="">Not specified</option>
-                  <option value="on_site">On-site</option>
-                  <option value="hybrid">Hybrid</option>
-                  <option value="remote">Remote</option>
-                </select>
-              </div>
-
-              {locationType && locationType !== 'remote' && (
+              <div className="form-row-pair">
                 <div className="form-field">
-                  <label htmlFor="location">Location</label>
-                  <input
-                    id="location"
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                  />
+                  <label htmlFor="employmentType">Employment type</label>
+                  <select
+                    id="employmentType"
+                    className="profile-select"
+                    value={employmentType}
+                    onChange={(e) => {
+                      setEmploymentType(e.target.value);
+                      if (e.target.value !== 'part_time') setHoursPerWeek('');
+                    }}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="full_time">Full time</option>
+                    <option value="part_time">Part time</option>
+                  </select>
                 </div>
-              )}
+
+                {employmentType === 'part_time' && (
+                  <div className="form-field">
+                    <label htmlFor="hoursPerWeek">Hours per week</label>
+                    <input
+                      id="hoursPerWeek"
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={hoursPerWeek}
+                      onChange={(e) => setHoursPerWeek(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="form-row-pair">
+                <div className="form-field">
+                  <label htmlFor="locationType">Location type</label>
+                  <select
+                    id="locationType"
+                    className="profile-select"
+                    value={locationType}
+                    onChange={(e) => setLocationType(e.target.value)}
+                  >
+                    <option value="">Not specified</option>
+                    <option value="on_site">On-site</option>
+                    <option value="hybrid">Hybrid</option>
+                    <option value="remote">Remote</option>
+                  </select>
+                </div>
+
+                {locationType && locationType !== 'remote' && (
+                  <div className="form-field">
+                    <label htmlFor="location">Location</label>
+                    <input
+                      id="location"
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <label htmlFor="description">Job description</label>
@@ -534,6 +563,11 @@ function JobDetail() {
         </div>
 
         <div className="job-detail-actions">
+          <div className="job-detail-date-logged">
+            <span className="job-detail-date-logged-label">Date logged</span>
+            <span>{job.date_logged}</span>
+          </div>
+
           <button
             type="button"
             className="button-positive"
