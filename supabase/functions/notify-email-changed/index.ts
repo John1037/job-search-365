@@ -35,7 +35,7 @@ function buildEmailHtml(newEmail: string) {
               <table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td style="vertical-align:middle; padding-right:10px;">
-                    <img src="https://jobsearch365.com/favicon.svg" width="30" height="29" alt="" style="display:block; border:0;">
+                    <img src="https://jobsearch365.com/logo-email.png" width="30" height="29" alt="" style="display:block; border:0;">
                   </td>
                   <td style="vertical-align:middle;">
                     <span style="font-size:19px; font-weight:800; font-style:italic; letter-spacing:-0.4px; text-transform:uppercase; color:#7e14ff;">Job Search 365</span>
