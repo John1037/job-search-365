@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import AddEventDialog from '../components/AddEventDialog';
 import ConnectCvDialog from '../components/ConnectCvDialog';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { formatEventDateTime, formatStatusDate } from '../jobFormat';
 import { sortedCurrencies } from '../data/currencies';
 
@@ -37,6 +38,7 @@ function JobDetail() {
   const [saveMessage, setSaveMessage] = useState(null);
 
   const [addEventOpen, setAddEventOpen] = useState(false);
+  const [eventPendingDelete, setEventPendingDelete] = useState(null);
 
   const [connectedCv, setConnectedCv] = useState(null);
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
@@ -229,6 +231,56 @@ function JobDetail() {
 
     setAddEventOpen(false);
     return {};
+  }
+
+  async function handleConfirmDeleteEvent() {
+    const eventToDelete = eventPendingDelete;
+    if (!eventToDelete) return;
+
+    setError(null);
+
+    const { error: deleteError } = await supabase
+      .from('events')
+      .delete()
+      .eq('id', eventToDelete.id);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setEventPendingDelete(null);
+      return;
+    }
+
+    // events is sorted most-recent-first, so whatever remains at the front
+    // (if anything) is the new "current" event driving the job's status.
+    const remainingEvents = events.filter((e) => e.id !== eventToDelete.id);
+    const latestEvent = remainingEvents[0];
+    const newStatus = latestEvent ? latestEvent.event_name : 'Interested';
+    const now = new Date().toISOString();
+
+    const jobUpdates = {
+      status: newStatus,
+      status_updated_at: now,
+      updated_at: now,
+    };
+
+    if (newStatus !== 'Application acknowledged') {
+      jobUpdates.expected_response_date = null;
+    }
+
+    const { error: statusError } = await supabase
+      .from('jobs')
+      .update(jobUpdates)
+      .eq('id', id);
+
+    if (statusError) {
+      setError(statusError.message);
+      setEventPendingDelete(null);
+      return;
+    }
+
+    setJob((j) => ({ ...j, ...jobUpdates }));
+    setEvents(remainingEvents);
+    setEventPendingDelete(null);
   }
 
   async function handleSelectCv(doc) {
@@ -655,6 +707,15 @@ function JobDetail() {
               <span className="item-meta">
                 {formatEventDateTime(event.event_date, event.event_time, country === 'US')}
               </span>
+              <div className="item-actions">
+                <button
+                  type="button"
+                  className="button-outline item-delete"
+                  onClick={() => setEventPendingDelete(event)}
+                >
+                  Delete
+                </button>
+              </div>
             </li>
           ))}
         </ul>
@@ -681,6 +742,15 @@ function JobDetail() {
         onClose={() => setConnectDialogOpen(false)}
         onSelect={handleSelectCv}
         cvWord={cvWord}
+      />
+
+      <ConfirmDialog
+        open={!!eventPendingDelete}
+        title="Delete event?"
+        message={`Delete "${eventPendingDelete?.event_name}"? This can't be undone.`}
+        confirmLabel="Delete"
+        onConfirm={handleConfirmDeleteEvent}
+        onCancel={() => setEventPendingDelete(null)}
       />
     </div>
   );
