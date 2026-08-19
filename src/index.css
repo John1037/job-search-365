@@ -290,24 +290,60 @@ body {
 }
 
 .home-page {
-  padding: 24px;
+  padding: 32px 24px;
+  max-width: 900px;
+  margin: 0 auto;
 }
 
 .home-greeting {
-  margin: 0 0 24px;
-  font-size: 26px;
+  margin: 0 0 28px;
+  font-size: 28px;
+  font-weight: 700;
   text-align: left;
 }
 
+.home-greeting-name {
+  color: var(--brand);
+}
+
 .home-section {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
+  padding: 20px 24px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .home-section h2 {
-  font-size: 18px;
-  margin: 0 0 8px;
-  padding-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  margin: 0 0 12px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
+}
+
+.home-section h2::before {
+  content: '';
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.home-section-alerts h2::before {
+  background: var(--error);
+}
+
+.home-section-interested h2::before {
+  background: var(--brand);
+}
+
+.home-section-potential h2::before {
+  background: #14b8a6;
 }
 
 .profile-form {
@@ -550,6 +586,10 @@ body {
   color: var(--text);
 }
 
+.required-marker {
+  color: var(--error);
+}
+
 .field-warning {
   color: var(--error);
   font-size: 13px;
@@ -561,6 +601,16 @@ body {
   opacity: 0.7;
   font-size: 13px;
   margin: 2px 0 0;
+}
+
+/* Same look as .field-hint, but with the bottom margin an .item-list would
+   otherwise provide, so an empty list doesn't sit flush against whatever
+   comes after it (e.g. a "Back to..." button). */
+.empty-list-hint {
+  color: var(--text);
+  opacity: 0.7;
+  font-size: 13px;
+  margin: 2px 0 20px;
 }
 
 .profile-form-actions {
@@ -751,6 +801,7 @@ body {
 }
 
 .item-badge {
+  align-self: center;
   padding: 2px 10px;
   border-radius: 999px;
   background: var(--accent-bg);

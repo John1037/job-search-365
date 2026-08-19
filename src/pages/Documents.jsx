@@ -271,7 +271,7 @@ function Documents() {
       {loading ? (
         <p>Loading…</p>
       ) : documents.length === 0 ? (
-        <p className="field-hint">No {categoryLabel.toLowerCase()} uploaded yet.</p>
+        <p className="empty-list-hint">No {categoryLabel.toLowerCase()} uploaded yet.</p>
       ) : (
         <ul className="item-list">
           {documents.map((doc) => (

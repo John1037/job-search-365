@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import AddEventDialog from '../components/AddEventDialog';
-import ConnectCvDialog from '../components/ConnectCvDialog';
+import ConnectDocumentDialog from '../components/ConnectDocumentDialog';
+import ManageDocumentsDialog from '../components/ManageDocumentsDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { formatEventDateTime, formatStatusDate } from '../jobFormat';
 import { sortedCurrencies } from '../data/currencies';
@@ -40,9 +41,19 @@ function JobDetail() {
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [eventPendingDelete, setEventPendingDelete] = useState(null);
 
-  const [connectedCv, setConnectedCv] = useState(null);
+  const [connectedDocs, setConnectedDocs] = useState({});
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
-  const [cvError, setCvError] = useState(null);
+  const [manageDocsOpen, setManageDocsOpen] = useState(false);
+  const [docsError, setDocsError] = useState(null);
+
+  const documentSlots = [
+    { key: 'cv_document_id', category: 'cv', label: cvWord },
+    { key: 'cover_letter_document_id', category: 'cover_letter', label: 'Cover letter' },
+    { key: 'certificate_document_id', category: 'certificate', label: 'Certificate' },
+    { key: 'other_document_1_id', category: 'other', label: 'Other document 1' },
+    { key: 'other_document_2_id', category: 'other', label: 'Other document 2' },
+    { key: 'other_document_3_id', category: 'other', label: 'Other document 3' },
+  ];
 
   useEffect(() => {
     async function load() {
@@ -92,14 +103,33 @@ function JobDetail() {
       setApplicationMethod(jobData.application_method ?? '');
       setNotes(jobData.notes ?? '');
 
-      if (jobData.cv_document_id) {
-        const { data: cvData } = await supabase
+      const slotKeys = [
+        'cv_document_id',
+        'cover_letter_document_id',
+        'certificate_document_id',
+        'other_document_1_id',
+        'other_document_2_id',
+        'other_document_3_id',
+      ];
+      const docIds = slotKeys.map((key) => jobData[key]).filter(Boolean);
+
+      if (docIds.length > 0) {
+        const { data: docsData } = await supabase
           .from('documents')
           .select('id, file_name, storage_path')
-          .eq('id', jobData.cv_document_id)
-          .maybeSingle();
+          .in('id', docIds);
 
-        setConnectedCv(cvData ?? null);
+        const docsById = Object.fromEntries(
+          (docsData ?? []).map((doc) => [doc.id, doc]),
+        );
+
+        const nextConnectedDocs = {};
+        for (const key of slotKeys) {
+          if (jobData[key] && docsById[jobData[key]]) {
+            nextConnectedDocs[key] = docsById[jobData[key]];
+          }
+        }
+        setConnectedDocs(nextConnectedDocs);
       }
 
       const { data: eventsData, error: eventsError } = await supabase
@@ -283,49 +313,70 @@ function JobDetail() {
     setEventPendingDelete(null);
   }
 
-  async function handleSelectCv(doc) {
-    setCvError(null);
+  async function handleConnectDocument(doc, category) {
+    setDocsError(null);
+
+    let slotKey;
+    if (category === 'other') {
+      const otherKeys = [
+        'other_document_1_id',
+        'other_document_2_id',
+        'other_document_3_id',
+      ];
+      slotKey = otherKeys.find((key) => !connectedDocs[key]);
+      if (!slotKey) {
+        setDocsError(
+          'All 3 "Other document" slots are full. Disconnect one first.',
+        );
+        return;
+      }
+    } else {
+      slotKey = documentSlots.find((slot) => slot.category === category)?.key;
+    }
 
     const { error: updateError } = await supabase
       .from('jobs')
-      .update({ cv_document_id: doc.id, updated_at: new Date().toISOString() })
+      .update({ [slotKey]: doc.id, updated_at: new Date().toISOString() })
       .eq('id', id);
 
     if (updateError) {
-      setCvError(updateError.message);
+      setDocsError(updateError.message);
       return;
     }
 
-    setConnectedCv(doc);
+    setConnectedDocs((docs) => ({ ...docs, [slotKey]: doc }));
     setConnectDialogOpen(false);
   }
 
-  async function handleDisconnectCv() {
-    setCvError(null);
+  async function handleDisconnectDocument(slotKey) {
+    setDocsError(null);
 
     const { error: updateError } = await supabase
       .from('jobs')
-      .update({ cv_document_id: null, updated_at: new Date().toISOString() })
+      .update({ [slotKey]: null, updated_at: new Date().toISOString() })
       .eq('id', id);
 
     if (updateError) {
-      setCvError(updateError.message);
+      setDocsError(updateError.message);
       return;
     }
 
-    setConnectedCv(null);
+    setConnectedDocs((docs) => {
+      const next = { ...docs };
+      delete next[slotKey];
+      return next;
+    });
   }
 
-  async function handleViewCv() {
-    if (!connectedCv) return;
-    setCvError(null);
+  async function handleViewDocument(doc) {
+    setDocsError(null);
 
     const { data, error: signError } = await supabase.storage
       .from('documents')
-      .createSignedUrl(connectedCv.storage_path, 60);
+      .createSignedUrl(doc.storage_path, 60);
 
     if (signError) {
-      setCvError(signError.message);
+      setDocsError(signError.message);
       return;
     }
 
@@ -640,47 +691,27 @@ function JobDetail() {
             Add event
           </button>
 
-          {cvError && <p className="form-error">{cvError}</p>}
+          {docsError && <p className="form-error">{docsError}</p>}
 
-          {connectedCv ? (
-            <>
-              <button
-                type="button"
-                className="button-secondary"
-                onClick={handleViewCv}
-              >
-                View {cvWord}
-              </button>
-              {job.status === 'Interested' && (
-                <>
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    onClick={handleDisconnectCv}
-                  >
-                    Disconnect {cvWord}
-                  </button>
-                  <button
-                    type="button"
-                    className="button-secondary"
-                    disabled
-                    title="Coming soon"
-                  >
-                    Tweak {cvWord}
-                  </button>
-                </>
-              )}
-            </>
-          ) : (
-            job.status === 'Interested' && (
+          {job.status === 'Interested' &&
+            documentSlots.some((slot) => !connectedDocs[slot.key]) && (
               <button
                 type="button"
                 className="button-secondary"
                 onClick={() => setConnectDialogOpen(true)}
               >
-                Connect a {cvWord}
+                Connect document
               </button>
-            )
+            )}
+
+          {Object.keys(connectedDocs).length > 0 && (
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={() => setManageDocsOpen(true)}
+            >
+              Manage documents
+            </button>
           )}
         </div>
       </div>
@@ -690,7 +721,7 @@ function JobDetail() {
       </div>
 
       {events.length === 0 ? (
-        <p className="field-hint">No events logged yet.</p>
+        <p className="empty-list-hint">No events logged yet.</p>
       ) : (
         <ul className="item-list">
           {events.map((event) => (
@@ -737,11 +768,22 @@ function JobDetail() {
         currentApplicationMethod={applicationMethod}
       />
 
-      <ConnectCvDialog
+      <ConnectDocumentDialog
         open={connectDialogOpen}
         onClose={() => setConnectDialogOpen(false)}
-        onSelect={handleSelectCv}
+        onSelect={handleConnectDocument}
+        connectedDocs={connectedDocs}
         cvWord={cvWord}
+      />
+
+      <ManageDocumentsDialog
+        open={manageDocsOpen}
+        onClose={() => setManageDocsOpen(false)}
+        slots={documentSlots}
+        connectedDocs={connectedDocs}
+        onView={handleViewDocument}
+        onDisconnect={handleDisconnectDocument}
+        canDisconnect={job.status === 'Interested'}
       />
 
       <ConfirmDialog

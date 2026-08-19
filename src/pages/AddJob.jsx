@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { sortedCurrencies } from '../data/currencies';
+import AlertDialog from '../components/AlertDialog';
 
 function AddJob() {
   const navigate = useNavigate();
@@ -11,18 +12,25 @@ function AddJob() {
   const [salaryMin, setSalaryMin] = useState('');
   const [salaryMax, setSalaryMax] = useState('');
   const [salaryCurrency, setSalaryCurrency] = useState('GBP');
-  const [salaryType, setSalaryType] = useState('annual');
-  const [salaryBasis, setSalaryBasis] = useState('flat');
+  const [salaryType, setSalaryType] = useState('');
+  const [salaryBasis, setSalaryBasis] = useState('');
   const [employmentType, setEmploymentType] = useState('');
   const [hoursPerWeek, setHoursPerWeek] = useState('');
   const [locationType, setLocationType] = useState('');
   const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [showRequiredAlert, setShowRequiredAlert] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+
+    if (!jobTitle.trim() || !employer.trim()) {
+      setShowRequiredAlert(true);
+      return;
+    }
+
     setSaving(true);
 
     const {
@@ -41,8 +49,8 @@ function AddJob() {
       salary_min: salaryMin === '' ? null : Number(salaryMin),
       salary_max: salaryMax === '' ? null : Number(salaryMax),
       salary_currency: salaryCurrency,
-      salary_type: salaryType,
-      salary_basis: salaryBasis,
+      salary_type: salaryType === '' ? null : salaryType,
+      salary_basis: salaryBasis === '' ? null : salaryBasis,
       employment_type: employmentType === '' ? null : employmentType,
       hours_per_week:
         employmentType === 'part_time' && hoursPerWeek !== ''
@@ -68,22 +76,24 @@ function AddJob() {
       <form className="profile-form" onSubmit={handleSubmit}>
         <h1>Add a job</h1>
 
-        <label htmlFor="jobTitle">Job title</label>
+        <label htmlFor="jobTitle">
+          Job title <span className="required-marker">*</span>
+        </label>
         <input
           id="jobTitle"
           type="text"
           value={jobTitle}
           onChange={(e) => setJobTitle(e.target.value)}
-          required
         />
 
-        <label htmlFor="employer">Employer</label>
+        <label htmlFor="employer">
+          Employer <span className="required-marker">*</span>
+        </label>
         <input
           id="employer"
           type="text"
           value={employer}
           onChange={(e) => setEmployer(e.target.value)}
-          required
         />
 
         <label htmlFor="salaryMin">Salary (min)</label>
@@ -139,6 +149,7 @@ function AddJob() {
           value={salaryType}
           onChange={(e) => setSalaryType(e.target.value)}
         >
+          <option value="">Not specified</option>
           <option value="annual">Annual</option>
           <option value="monthly">Monthly</option>
           <option value="weekly">Weekly</option>
@@ -152,6 +163,7 @@ function AddJob() {
           value={salaryBasis}
           onChange={(e) => setSalaryBasis(e.target.value)}
         >
+          <option value="">Not specified</option>
           <option value="flat">Flat</option>
           <option value="ote">OTE</option>
         </select>
@@ -225,6 +237,13 @@ function AddJob() {
           </button>
         </div>
       </form>
+
+      <AlertDialog
+        open={showRequiredAlert}
+        title="Missing required fields"
+        message="Job title and Employer are both required before you can add this job."
+        onClose={() => setShowRequiredAlert(false)}
+      />
     </div>
   );
 }

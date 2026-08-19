@@ -111,7 +111,7 @@ function ManageJobs({ closed = false }) {
       {loading ? (
         <p>Loading…</p>
       ) : jobs.length === 0 ? (
-        <p className="field-hint">
+        <p className="empty-list-hint">
           {closed ? 'No closed jobs.' : 'No jobs added yet.'}
         </p>
       ) : (

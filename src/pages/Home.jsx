@@ -190,9 +190,12 @@ function Home() {
 
   return (
     <div className="home-page">
-      <h1 className="home-greeting">Hi {displayName}, here's what's going on</h1>
+      <h1 className="home-greeting">
+        Hi <span className="home-greeting-name">{displayName}</span>, here's
+        what's going on
+      </h1>
 
-      <section className="home-section">
+      <section className="home-section home-section-alerts">
         <h2>Alerts</h2>
 
         {alertsError && <p className="form-error">{alertsError}</p>}
@@ -238,7 +241,7 @@ function Home() {
         )}
       </section>
 
-      <section className="home-section">
+      <section className="home-section home-section-applications">
         <h2>Current applications</h2>
 
         {applicationsError && <p className="form-error">{applicationsError}</p>}
@@ -246,7 +249,10 @@ function Home() {
         {loadingApplications ? (
           <p>Loading…</p>
         ) : applications.length === 0 ? (
-          <p className="field-hint">No current applications.</p>
+          <p className="field-hint">
+            No current applications. <Link to="/jobs/new">Add a job</Link> to
+            get started.
+          </p>
         ) : (
           <ul className="item-list">
             {applications.map((job) => (
@@ -256,7 +262,7 @@ function Home() {
         )}
       </section>
 
-      <section className="home-section">
+      <section className="home-section home-section-interested">
         <h2>Current interested jobs</h2>
 
         {interestedError && <p className="form-error">{interestedError}</p>}
@@ -264,7 +270,10 @@ function Home() {
         {loadingInterested ? (
           <p>Loading…</p>
         ) : interested.length === 0 ? (
-          <p className="field-hint">No interested jobs yet.</p>
+          <p className="field-hint">
+            No interested jobs yet. <Link to="/jobs/new">Add a job</Link> to
+            get started.
+          </p>
         ) : (
           <ul className="item-list">
             {interested.map((job) => (
@@ -274,8 +283,9 @@ function Home() {
         )}
       </section>
 
-      <section className="home-section">
+      <section className="home-section home-section-potential">
         <h2>Potential jobs</h2>
+        <p className="field-hint">Coming soon.</p>
       </section>
     </div>
   );

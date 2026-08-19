@@ -30,6 +30,7 @@ function EditProfile() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [location, setLocation] = useState('');
   const [country, setCountry] = useState('GB');
+  const [linkedinUrl, setLinkedinUrl] = useState('');
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
@@ -55,7 +56,7 @@ function EditProfile() {
       const { data: profile, error } = await supabase
         .from('profiles')
         .select(
-          'full_name, short_name, phone_country, phone_number, location, country, avatar_url',
+          'full_name, short_name, phone_country, phone_number, location, country, avatar_url, linkedin_url',
         )
         .eq('id', user.id)
         .maybeSingle();
@@ -69,6 +70,7 @@ function EditProfile() {
         setPhoneNumber(profile.phone_number ?? '');
         setLocation(profile.location ?? '');
         if (profile.country) setCountry(profile.country);
+        setLinkedinUrl(profile.linkedin_url ?? '');
         setAvatarUrl(profile.avatar_url ?? null);
         setAvatarPreview(profile.avatar_url ?? null);
       }
@@ -133,6 +135,7 @@ function EditProfile() {
       phone_number: phoneNumber,
       location,
       country,
+      linkedin_url: linkedinUrl || null,
       avatar_url: newAvatarUrl,
       updated_at: new Date().toISOString(),
     });
@@ -263,6 +266,27 @@ function EditProfile() {
             </option>
           ))}
         </select>
+
+        <label htmlFor="linkedinUrl">LinkedIn profile</label>
+        <div className="url-field">
+          <input
+            id="linkedinUrl"
+            type="url"
+            placeholder="https://www.linkedin.com/in/..."
+            value={linkedinUrl}
+            onChange={(e) => setLinkedinUrl(e.target.value)}
+          />
+          {linkedinUrl && (
+            <a
+              href={linkedinUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="url-field-open"
+            >
+              Open
+            </a>
+          )}
+        </div>
 
         {error && <p className="form-error">{error}</p>}
         {message && <p className="form-message">{message}</p>}
