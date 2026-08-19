@@ -742,6 +742,22 @@ body {
   gap: 2px;
 }
 
+.job-list-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.job-list-item-top {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.job-list-item-top .item-badge {
+  align-self: flex-end;
+}
+
 .item-name-primary {
   display: block;
   overflow: hidden;
