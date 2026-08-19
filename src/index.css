@@ -750,11 +750,17 @@ body {
 
 .job-list-item-top {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.job-list-item-details {
+  display: flex;
   align-items: flex-end;
   gap: 12px;
 }
 
-.job-list-item-top .item-badge {
+.job-list-item-details .item-badge {
   align-self: flex-end;
 }
 

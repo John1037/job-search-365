@@ -8,21 +8,24 @@ function JobListItem({ job, children }) {
   return (
     <li className="item-row job-list-item">
       <div className="job-list-item-top">
-        <span className="item-name">
-          <Link
-            to={`/jobs/${job.id}`}
-            className="item-name-primary item-name-link"
-          >
-            {job.job_title}
-          </Link>
-          <span className="item-subtext">{job.employer}</span>
-          {(salary || location) && (
-            <span className="item-subtext">
-              {[salary, location].filter(Boolean).join(' · ')}
-            </span>
-          )}
-        </span>
-        <span className="item-badge">{job.status}</span>
+        <Link
+          to={`/jobs/${job.id}`}
+          className="item-name-primary item-name-link"
+        >
+          {job.job_title}
+        </Link>
+
+        <div className="job-list-item-details">
+          <span className="item-name">
+            <span className="item-subtext">{job.employer}</span>
+            {(salary || location) && (
+              <span className="item-subtext">
+                {[salary, location].filter(Boolean).join(' · ')}
+              </span>
+            )}
+          </span>
+          <span className="item-badge">{job.status}</span>
+        </div>
       </div>
       {children && <div className="item-actions">{children}</div>}
     </li>
