@@ -1,9 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import ConfirmDialog from '../components/ConfirmDialog';
-import JobListItem from '../components/JobListItem';
+import FilterJobsDialog from '../components/FilterJobsDialog';
+import SortJobsDialog from '../components/SortJobsDialog';
+import JobCard from '../components/JobCard';
 import { JOB_LIST_COLUMNS } from '../jobFormat';
+import {
+  EMPTY_FILTERS,
+  buildFilterOptions,
+  countActiveFilters,
+  describeActiveFilters,
+  clearFilterCategory,
+  jobMatchesFilters,
+} from '../jobFilters';
+import { MAX_SORT_LEVELS, sortFieldLabel, sortJobs } from '../jobSort';
 
 function ManageJobs({ closed = false }) {
   const navigate = useNavigate();
@@ -11,6 +22,10 @@ function ManageJobs({ closed = false }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [jobPendingDelete, setJobPendingDelete] = useState(null);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [sortLevels, setSortLevels] = useState([]);
+  const [sortDialogOpen, setSortDialogOpen] = useState(false);
 
   useEffect(() => {
     async function loadJobs() {
@@ -41,6 +56,36 @@ function ManageJobs({ closed = false }) {
 
     loadJobs();
   }, [closed]);
+
+  const filterOptions = useMemo(() => buildFilterOptions(jobs), [jobs]);
+  const filteredJobs = useMemo(
+    () => jobs.filter((job) => jobMatchesFilters(job, filters)),
+    [jobs, filters],
+  );
+  const sortedJobs = useMemo(
+    () => sortJobs(filteredJobs, sortLevels),
+    [filteredJobs, sortLevels],
+  );
+  const activeFilterCount = countActiveFilters(filters);
+  const filterChips = describeActiveFilters(filters, filterOptions);
+  const sortChips = sortLevels.map((level, index) => ({
+    id: index,
+    label: `${index + 1}. ${sortFieldLabel(level.field)} ${
+      level.direction === 'asc' ? '▲' : '▼'
+    }`,
+  }));
+
+  function handleRemoveFilterChip(id) {
+    setFilters((f) => clearFilterCategory(f, id));
+  }
+
+  function handleRemoveSortChip(index) {
+    setSortLevels((levels) => levels.filter((_, i) => i !== index));
+  }
+
+  function handleAddSortLevel(level) {
+    setSortLevels((levels) => [...levels, level]);
+  }
 
   async function handleCloseJob(job) {
     setError(null);
@@ -99,12 +144,79 @@ function ManageJobs({ closed = false }) {
     <div className="list-page list-page-wide">
       <div className="list-header">
         <h1>{closed ? 'Closed jobs' : 'Manage jobs'}</h1>
-        {!closed && (
-          <button type="button" onClick={() => navigate('/jobs/new')}>
-            Add a job
+        <div className="list-header-actions">
+          <button
+            type="button"
+            className="button-outline filter-by-button"
+            onClick={() => setFilterDialogOpen(true)}
+          >
+            Filter by{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
           </button>
-        )}
+          <button
+            type="button"
+            className="button-outline sort-by-button"
+            disabled={sortLevels.length >= MAX_SORT_LEVELS}
+            title={
+              sortLevels.length >= MAX_SORT_LEVELS
+                ? `Maximum ${MAX_SORT_LEVELS} sort levels reached`
+                : undefined
+            }
+            onClick={() => setSortDialogOpen(true)}
+          >
+            Sort by{sortLevels.length > 0 ? ` (${sortLevels.length})` : ''}
+          </button>
+          {!closed && (
+            <button type="button" onClick={() => navigate('/jobs/new')}>
+              Add a job
+            </button>
+          )}
+        </div>
       </div>
+
+      {filterChips.length > 0 && (
+        <div className="active-chips-row">
+          <span className="active-chips-label">Applied filters:</span>
+          <div className="active-chips-list">
+            {filterChips.map((chip) => (
+              <span key={chip.id} className="active-chip">
+                {chip.label}
+                <button
+                  type="button"
+                  className="active-chip-remove"
+                  onClick={() => handleRemoveFilterChip(chip.id)}
+                  aria-label={`Remove filter: ${chip.label}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sortChips.length > 0 && (
+        <div className="active-chips-row">
+          <span className="active-chips-label">Applied sorts:</span>
+          <div className="active-chips-list">
+            {sortChips.map((chip) => (
+              <span
+                key={`sort-${chip.id}`}
+                className="active-chip active-chip-sort"
+              >
+                {chip.label}
+                <button
+                  type="button"
+                  className="active-chip-remove"
+                  onClick={() => handleRemoveSortChip(chip.id)}
+                  aria-label={`Remove sort: ${chip.label}`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && <p className="form-error">{error}</p>}
 
@@ -114,10 +226,12 @@ function ManageJobs({ closed = false }) {
         <p className="empty-list-hint">
           {closed ? 'No closed jobs.' : 'No jobs added yet.'}
         </p>
+      ) : filteredJobs.length === 0 ? (
+        <p className="empty-list-hint">No jobs match your filters.</p>
       ) : (
-        <ul className="item-list">
-          {jobs.map((job) => (
-            <JobListItem key={job.id} job={job}>
+        <ul className="job-card-grid">
+          {sortedJobs.map((job) => (
+            <JobCard key={job.id} job={job}>
               {closed ? (
                 <button
                   type="button"
@@ -132,7 +246,7 @@ function ManageJobs({ closed = false }) {
                   className="button-outline"
                   onClick={() => handleCloseJob(job)}
                 >
-                  Close job
+                  Close
                 </button>
               )}
               <button
@@ -142,7 +256,7 @@ function ManageJobs({ closed = false }) {
               >
                 Delete
               </button>
-            </JobListItem>
+            </JobCard>
           ))}
         </ul>
       )}
@@ -162,6 +276,22 @@ function ManageJobs({ closed = false }) {
         confirmLabel="Delete"
         onConfirm={handleConfirmDelete}
         onCancel={() => setJobPendingDelete(null)}
+      />
+
+      <FilterJobsDialog
+        open={filterDialogOpen}
+        onClose={() => setFilterDialogOpen(false)}
+        filters={filters}
+        onApply={setFilters}
+        options={filterOptions}
+      />
+
+      <SortJobsDialog
+        open={sortDialogOpen}
+        onClose={() => setSortDialogOpen(false)}
+        onAdd={handleAddSortLevel}
+        usedFields={sortLevels.map((l) => l.field)}
+        levelNumber={sortLevels.length + 1}
       />
     </div>
   );

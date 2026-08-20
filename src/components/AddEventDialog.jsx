@@ -74,6 +74,7 @@ function AddEventDialog({
 
     if (eventName === 'Applied') {
       payload.application_method = applicationMethod || null;
+      payload.event_type = applicationMethod || null;
     } else if (eventName === 'Application acknowledged') {
       payload.expected_response_date = employerResponseDate || null;
     } else if (INTERVIEW_EVENT_NAMES.includes(eventName)) {

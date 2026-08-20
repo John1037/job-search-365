@@ -1,5 +1,5 @@
 export const JOB_LIST_COLUMNS =
-  'id, job_title, employer, status, salary_min, salary_max, salary_currency, salary_type, salary_basis, location_type, location';
+  'id, job_title, employer, status, salary_min, salary_max, salary_currency, salary_type, salary_basis, employment_type, location_type, location, date_logged, updated_at, status_updated_at';
 
 // Of the fixed event names, only these describe something still ahead —
 // the rest ("Applied", "Interview completed", "Offer received") record
@@ -13,11 +13,26 @@ const SALARY_TYPE_LABELS = {
   hourly: '/hr',
 };
 
-const LOCATION_TYPE_LABELS = {
+export const LOCATION_TYPE_LABELS = {
   on_site: 'On-site',
   hybrid: 'Hybrid',
   remote: 'Remote',
 };
+
+export const EMPLOYMENT_TYPE_LABELS = {
+  full_time: 'Full time',
+  part_time: 'Part time',
+};
+
+export const STATUS_ORDER = [
+  'Interested',
+  'Applied',
+  'Application acknowledged',
+  'Interview scheduled',
+  'Interview completed',
+  'Offer received',
+  'Assume unsuccessful',
+];
 
 const SALARY_BASIS_LABELS = {
   flat_estimated: ' (estimated)',
