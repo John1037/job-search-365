@@ -25,7 +25,7 @@ function JobDetail() {
   const [salaryMax, setSalaryMax] = useState('');
   const [salaryCurrency, setSalaryCurrency] = useState('GBP');
   const [salaryType, setSalaryType] = useState('annual');
-  const [salaryBasis, setSalaryBasis] = useState('flat');
+  const [salaryBasis, setSalaryBasis] = useState('');
   const [employmentType, setEmploymentType] = useState('');
   const [hoursPerWeek, setHoursPerWeek] = useState('');
   const [locationType, setLocationType] = useState('');
@@ -92,7 +92,7 @@ function JobDetail() {
       setSalaryMax(jobData.salary_max ?? '');
       setSalaryCurrency(jobData.salary_currency ?? 'GBP');
       setSalaryType(jobData.salary_type ?? 'annual');
-      setSalaryBasis(jobData.salary_basis ?? 'flat');
+      setSalaryBasis(jobData.salary_basis ?? '');
       setEmploymentType(jobData.employment_type ?? '');
       setHoursPerWeek(jobData.hours_per_week ?? '');
       setLocationType(jobData.location_type ?? '');
@@ -164,7 +164,7 @@ function JobDetail() {
       salary_max: salaryMax === '' ? null : Number(salaryMax),
       salary_currency: salaryCurrency,
       salary_type: salaryType,
-      salary_basis: salaryBasis,
+      salary_basis: salaryBasis === '' ? null : salaryBasis,
       employment_type: employmentType === '' ? null : employmentType,
       hours_per_week:
         employmentType === 'part_time' && hoursPerWeek !== ''
@@ -543,8 +543,10 @@ function JobDetail() {
                     value={salaryBasis}
                     onChange={(e) => setSalaryBasis(e.target.value)}
                   >
-                    <option value="flat">Flat</option>
-                    <option value="ote">OTE</option>
+                    <option value="">Not specified</option>
+                    <option value="flat_stated">Flat - stated</option>
+                    <option value="flat_estimated">Flat - estimated</option>
+                    <option value="ote_stated">OTE - stated</option>
                   </select>
                 </div>
               </div>

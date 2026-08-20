@@ -164,8 +164,9 @@ function AddJob() {
           onChange={(e) => setSalaryBasis(e.target.value)}
         >
           <option value="">Not specified</option>
-          <option value="flat">Flat</option>
-          <option value="ote">OTE</option>
+          <option value="flat_stated">Flat - stated</option>
+          <option value="flat_estimated">Flat - estimated</option>
+          <option value="ote_stated">OTE - stated</option>
         </select>
 
         <label htmlFor="employmentType">Employment type</label>

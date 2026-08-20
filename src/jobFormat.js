@@ -19,6 +19,11 @@ const LOCATION_TYPE_LABELS = {
   remote: 'Remote',
 };
 
+const SALARY_BASIS_LABELS = {
+  flat_estimated: ' (estimated)',
+  ote_stated: ' OTE',
+};
+
 export function formatSalary(job) {
   if (job.salary_min == null && job.salary_max == null) return null;
 
@@ -29,7 +34,7 @@ export function formatSalary(job) {
   const range = min && max ? `${min}–${max}` : (min ?? max);
   const typeLabel = SALARY_TYPE_LABELS[job.salary_type];
   const suffix = typeLabel ? ` ${typeLabel}` : '';
-  const basis = job.salary_basis === 'ote' ? ' OTE' : '';
+  const basis = SALARY_BASIS_LABELS[job.salary_basis] ?? '';
   const currency = job.salary_currency ? `${job.salary_currency} ` : '';
 
   return `${currency}${range}${suffix}${basis}`;
