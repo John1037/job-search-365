@@ -28,6 +28,7 @@ function JobDetail() {
   const [salaryBasis, setSalaryBasis] = useState('');
   const [employmentType, setEmploymentType] = useState('');
   const [hoursPerWeek, setHoursPerWeek] = useState('');
+  const [employmentDuration, setEmploymentDuration] = useState('Permanent');
   const [locationType, setLocationType] = useState('');
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
@@ -95,6 +96,7 @@ function JobDetail() {
       setSalaryBasis(jobData.salary_basis ?? '');
       setEmploymentType(jobData.employment_type ?? '');
       setHoursPerWeek(jobData.hours_per_week ?? '');
+      setEmploymentDuration(jobData.employment_duration ?? 'Permanent');
       setLocationType(jobData.location_type ?? '');
       setLocation(jobData.location ?? '');
       setDescription(jobData.description ?? '');
@@ -170,6 +172,8 @@ function JobDetail() {
         employmentType === 'part_time' && hoursPerWeek !== ''
           ? Number(hoursPerWeek)
           : null,
+      employment_duration:
+        employmentType === '' ? null : employmentDuration || null,
       location_type: locationType === '' ? null : locationType,
       location: locationType === 'remote' ? null : location || null,
       description: description || null,
@@ -581,6 +585,20 @@ function JobDetail() {
                       step="0.5"
                       value={hoursPerWeek}
                       onChange={(e) => setHoursPerWeek(e.target.value)}
+                    />
+                  </div>
+                )}
+
+                {employmentType !== '' && (
+                  <div className="form-field">
+                    <label htmlFor="employmentDuration">
+                      Employment duration
+                    </label>
+                    <input
+                      id="employmentDuration"
+                      type="text"
+                      value={employmentDuration}
+                      onChange={(e) => setEmploymentDuration(e.target.value)}
                     />
                   </div>
                 )}

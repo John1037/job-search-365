@@ -31,6 +31,7 @@ function EditProfile() {
   const [location, setLocation] = useState('');
   const [country, setCountry] = useState('GB');
   const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [githubUrl, setGithubUrl] = useState('');
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
@@ -56,7 +57,7 @@ function EditProfile() {
       const { data: profile, error } = await supabase
         .from('profiles')
         .select(
-          'full_name, short_name, phone_country, phone_number, location, country, avatar_url, linkedin_url',
+          'full_name, short_name, phone_country, phone_number, location, country, avatar_url, linkedin_url, github_url',
         )
         .eq('id', user.id)
         .maybeSingle();
@@ -71,6 +72,7 @@ function EditProfile() {
         setLocation(profile.location ?? '');
         if (profile.country) setCountry(profile.country);
         setLinkedinUrl(profile.linkedin_url ?? '');
+        setGithubUrl(profile.github_url ?? '');
         setAvatarUrl(profile.avatar_url ?? null);
         setAvatarPreview(profile.avatar_url ?? null);
       }
@@ -136,6 +138,7 @@ function EditProfile() {
       location,
       country,
       linkedin_url: linkedinUrl || null,
+      github_url: githubUrl || null,
       avatar_url: newAvatarUrl,
       updated_at: new Date().toISOString(),
     });
@@ -279,6 +282,27 @@ function EditProfile() {
           {linkedinUrl && (
             <a
               href={linkedinUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="url-field-open"
+            >
+              Open
+            </a>
+          )}
+        </div>
+
+        <label htmlFor="githubUrl">GitHub account</label>
+        <div className="url-field">
+          <input
+            id="githubUrl"
+            type="url"
+            placeholder="https://github.com/..."
+            value={githubUrl}
+            onChange={(e) => setGithubUrl(e.target.value)}
+          />
+          {githubUrl && (
+            <a
+              href={githubUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="url-field-open"

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FilterJobsDialog from '../components/FilterJobsDialog';
@@ -18,6 +18,7 @@ import { MAX_SORT_LEVELS, sortFieldLabel, sortJobs } from '../jobSort';
 
 function ManageJobs({ closed = false }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -26,6 +27,23 @@ function ManageJobs({ closed = false }) {
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [sortLevels, setSortLevels] = useState([]);
   const [sortDialogOpen, setSortDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+  const [crossScopeCount, setCrossScopeCount] = useState(0);
+
+  // Wait for typing to pause before actually querying the database.
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearchTerm(searchTerm), 350);
+    return () => clearTimeout(timeout);
+  }, [searchTerm]);
+
+  // Keep the URL in sync so a search is shareable/bookmarkable and survives
+  // a page reload, without spamming browser history on every keystroke.
+  useEffect(() => {
+    const trimmed = debouncedSearchTerm.trim();
+    setSearchParams(trimmed === '' ? {} : { q: trimmed }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchTerm]);
 
   useEffect(() => {
     async function loadJobs() {
@@ -38,12 +56,23 @@ function ManageJobs({ closed = false }) {
 
       if (!user) return;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('jobs')
         .select(JOB_LIST_COLUMNS)
         .eq('user_id', user.id)
-        .eq('is_closed', closed)
-        .order('date_logged', { ascending: false });
+        .eq('is_closed', closed);
+
+      const trimmed = debouncedSearchTerm.trim();
+      if (trimmed !== '') {
+        query = query.textSearch('search_vector', trimmed, {
+          type: 'websearch',
+          config: 'english',
+        });
+      }
+
+      const { data, error } = await query.order('date_logged', {
+        ascending: false,
+      });
 
       if (error) {
         setError(error.message);
@@ -55,7 +84,39 @@ function ManageJobs({ closed = false }) {
     }
 
     loadJobs();
-  }, [closed]);
+  }, [closed, debouncedSearchTerm]);
+
+  // How many matches exist on the *other* (open/closed) page, so a search
+  // here doesn't silently hide a job that's just sitting in the other list.
+  useEffect(() => {
+    async function loadCrossScopeCount() {
+      const trimmed = debouncedSearchTerm.trim();
+      if (trimmed === '') {
+        setCrossScopeCount(0);
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { count, error } = await supabase
+        .from('jobs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_closed', !closed)
+        .textSearch('search_vector', trimmed, {
+          type: 'websearch',
+          config: 'english',
+        });
+
+      if (!error) setCrossScopeCount(count ?? 0);
+    }
+
+    loadCrossScopeCount();
+  }, [closed, debouncedSearchTerm]);
 
   const filterOptions = useMemo(() => buildFilterOptions(jobs), [jobs]);
   const filteredJobs = useMemo(
@@ -173,6 +234,49 @@ function ManageJobs({ closed = false }) {
         </div>
       </div>
 
+      <div className="search-row">
+        <div className="search-field">
+          <input
+            type="search"
+            className="search-input"
+            placeholder="Search title, employer, location, description, notes…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Search jobs"
+          />
+          {searchTerm !== '' && (
+            <button
+              type="button"
+              className="search-clear-button"
+              onClick={() => setSearchTerm('')}
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      </div>
+
+      {!loading && debouncedSearchTerm.trim() !== '' && jobs.length === 0 && (
+        <p className="search-no-match">
+          No {closed ? 'closed' : 'open'} jobs match your search.
+        </p>
+      )}
+
+      {debouncedSearchTerm.trim() !== '' && crossScopeCount > 0 && (
+        <div className="search-cross-scope-hint">
+          <Link
+            to={`${closed ? '/jobs' : '/jobs/closed'}?q=${encodeURIComponent(
+              debouncedSearchTerm.trim(),
+            )}`}
+            className="button-outline search-cross-scope-button"
+          >
+            {crossScopeCount} more match{crossScopeCount === 1 ? '' : 'es'} in{' '}
+            {closed ? 'open' : 'closed'} jobs
+          </Link>
+        </div>
+      )}
+
       {filterChips.length > 0 && (
         <div className="active-chips-row">
           <span className="active-chips-label">Applied filters:</span>
@@ -223,9 +327,11 @@ function ManageJobs({ closed = false }) {
       {loading ? (
         <p>Loading…</p>
       ) : jobs.length === 0 ? (
-        <p className="empty-list-hint">
-          {closed ? 'No closed jobs.' : 'No jobs added yet.'}
-        </p>
+        debouncedSearchTerm.trim() === '' && (
+          <p className="empty-list-hint">
+            {closed ? 'No closed jobs.' : 'No jobs added yet.'}
+          </p>
+        )
       ) : filteredJobs.length === 0 ? (
         <p className="empty-list-hint">No jobs match your filters.</p>
       ) : (
