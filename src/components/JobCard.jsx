@@ -8,9 +8,21 @@ function JobCard({ job, children }) {
   return (
     <li className="job-card">
       <div className="job-card-top">
-        <Link to={`/jobs/${job.id}`} className="job-card-title">
-          {job.job_title}
-        </Link>
+        <div className="job-card-title-row">
+          <Link to={`/jobs/${job.id}`} className="job-card-title">
+            {job.job_title}
+          </Link>
+          {job.favorite_level != null && (
+            <span
+              className="job-card-favorite-stars"
+              aria-label={
+                job.favorite_level === 2 ? 'Marked Favorite' : 'Marked Preferred'
+              }
+            >
+              {'★'.repeat(job.favorite_level)}
+            </span>
+          )}
+        </div>
 
         <span className="item-name">
           <span className="item-subtext">{job.employer}</span>

@@ -387,6 +387,22 @@ function JobDetail() {
     window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   }
 
+  async function handleSetFavorite(level) {
+    setError(null);
+
+    const { error: updateError } = await supabase
+      .from('jobs')
+      .update({ favorite_level: level, updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    setJob((j) => ({ ...j, favorite_level: level }));
+  }
+
   if (loading) {
     return <div className="page-content">Loading…</div>;
   }
@@ -419,10 +435,22 @@ function JobDetail() {
 
   return (
     <div className="job-detail-page">
-      <div className="list-header">
-        <h1>
-          {job.job_title} — {job.employer}
-        </h1>
+      <div className="list-header job-detail-header-grid">
+        <div className="job-detail-title-row">
+          <h1>
+            {job.job_title} — {job.employer}
+          </h1>
+          <span
+            className="job-detail-favorite-stars"
+            aria-label={
+              job.favorite_level
+                ? `Marked ${job.favorite_level === 2 ? 'Favorite' : 'Preferred'}`
+                : undefined
+            }
+          >
+            {'★'.repeat(job.favorite_level ?? 0)}
+          </span>
+        </div>
         <div className="status-with-date">
           <span className="item-badge">{job.status}</span>
           <span className="status-updated-label">
@@ -697,42 +725,71 @@ function JobDetail() {
           </form>
         </div>
 
-        <div className="job-detail-actions">
-          <div className="job-detail-date-logged">
-            <span className="job-detail-date-logged-label">Date logged</span>
-            <span>{job.date_logged}</span>
-          </div>
+        <div className="job-detail-actions-column">
+          <div className="job-detail-actions">
+            <div className="job-detail-date-logged">
+              <span className="job-detail-date-logged-label">Date logged</span>
+              <span>{job.date_logged}</span>
+            </div>
 
-          <button
-            type="button"
-            className="button-positive"
-            onClick={() => setAddEventOpen(true)}
-          >
-            Add event
-          </button>
+            <button
+              type="button"
+              className="button-positive"
+              onClick={() => setAddEventOpen(true)}
+            >
+              Add event
+            </button>
 
-          {docsError && <p className="form-error">{docsError}</p>}
+            {docsError && <p className="form-error">{docsError}</p>}
 
-          {job.status === 'Interested' &&
-            documentSlots.some((slot) => !connectedDocs[slot.key]) && (
+            {job.status === 'Interested' &&
+              documentSlots.some((slot) => !connectedDocs[slot.key]) && (
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={() => setConnectDialogOpen(true)}
+                >
+                  Connect document
+                </button>
+              )}
+
+            {Object.keys(connectedDocs).length > 0 && (
               <button
                 type="button"
                 className="button-secondary"
-                onClick={() => setConnectDialogOpen(true)}
+                onClick={() => setManageDocsOpen(true)}
               >
-                Connect document
+                Manage documents
               </button>
             )}
+          </div>
 
-          {Object.keys(connectedDocs).length > 0 && (
+          <div className="job-detail-actions">
             <button
               type="button"
               className="button-secondary"
-              onClick={() => setManageDocsOpen(true)}
+              disabled={job.favorite_level == null}
+              onClick={() => handleSetFavorite(null)}
             >
-              Manage documents
+              Clear Favorite
             </button>
-          )}
+            <button
+              type="button"
+              className="button-preferred"
+              disabled={job.favorite_level === 1}
+              onClick={() => handleSetFavorite(1)}
+            >
+              Mark Preferred
+            </button>
+            <button
+              type="button"
+              className="button-positive"
+              disabled={job.favorite_level === 2}
+              onClick={() => handleSetFavorite(2)}
+            >
+              Mark Favorite
+            </button>
+          </div>
         </div>
       </div>
 

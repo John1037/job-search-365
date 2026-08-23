@@ -1,5 +1,5 @@
 export const JOB_LIST_COLUMNS =
-  'id, job_title, employer, status, salary_min, salary_max, salary_currency, salary_type, salary_basis, employment_type, location_type, location, date_logged, updated_at, status_updated_at';
+  'id, job_title, employer, status, salary_min, salary_max, salary_currency, salary_type, salary_basis, employment_type, location_type, location, date_logged, updated_at, status_updated_at, favorite_level';
 
 // Of the fixed event names, only these describe something still ahead —
 // the rest ("Applied", "Interview completed", "Offer received") record
