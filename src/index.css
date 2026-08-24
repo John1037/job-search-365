@@ -11,9 +11,10 @@
   --success-text: #15803d;
   --success-bg: #f0fdf4;
   --success-border: #bbf7d0;
-  --filter-text: #c2618a;
+  --filter-text: #a8447a;
   --filter-bg: rgba(194, 97, 138, 0.14);
   --filter-border: rgba(194, 97, 138, 0.4);
+  --sort-text: #7e14ff;
   --sort-bg: rgba(126, 20, 255, 0.1);
   --sort-border: rgba(126, 20, 255, 0.3);
   color-scheme: light dark;
@@ -36,6 +37,7 @@
     --filter-text: #f0a8c4;
     --filter-bg: rgba(240, 168, 196, 0.16);
     --filter-border: rgba(240, 168, 196, 0.4);
+    --sort-text: #d8b4fe;
     --sort-bg: rgba(216, 180, 254, 0.2);
     --sort-border: rgba(216, 180, 254, 0.55);
   }
@@ -795,7 +797,7 @@ body {
 }
 
 .list-header-actions button.button-outline.sort-by-button[type='button'] {
-  color: var(--brand);
+  color: var(--sort-text);
   background: var(--sort-bg);
   border-color: var(--sort-border);
 }
@@ -908,7 +910,7 @@ body {
 
 .active-chip-sort {
   background: var(--sort-bg);
-  color: var(--brand);
+  color: var(--sort-text);
 }
 
 .active-chip-remove {
