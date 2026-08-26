@@ -29,6 +29,7 @@ export const EMPLOYMENT_TYPE_LABELS = {
 export const APPLICATION_METHOD_OPTIONS = [
   'Online - job search site',
   'Online - direct',
+  'LinkedIn',
   'Online - other',
   'Online',
 ];
