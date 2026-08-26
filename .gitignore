@@ -15,6 +15,7 @@ dist-ssr
 # Local Supabase credentials
 .env
 .env.local
+.env.production
 
 # Local Claude Code settings
 .claude/settings.local.json
