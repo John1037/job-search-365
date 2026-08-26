@@ -24,6 +24,15 @@ export const EMPLOYMENT_TYPE_LABELS = {
   part_time: 'Part time',
 };
 
+// 'Online' is retained only so jobs logged before this list was split still
+// have a matching option — new entries should use one of the specific ones.
+export const APPLICATION_METHOD_OPTIONS = [
+  'Online - job search site',
+  'Online - direct',
+  'Online - other',
+  'Online',
+];
+
 export const STATUS_ORDER = [
   'Interested',
   'Applied',

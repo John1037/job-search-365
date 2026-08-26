@@ -5,7 +5,11 @@ import AddEventDialog from '../components/AddEventDialog';
 import ConnectDocumentDialog from '../components/ConnectDocumentDialog';
 import ManageDocumentsDialog from '../components/ManageDocumentsDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { formatEventDateTime, formatStatusDate } from '../jobFormat';
+import {
+  formatEventDateTime,
+  formatStatusDate,
+  APPLICATION_METHOD_OPTIONS,
+} from '../jobFormat';
 import { sortedCurrencies } from '../data/currencies';
 
 function JobDetail() {
@@ -699,12 +703,19 @@ function JobDetail() {
             />
 
             <label htmlFor="applicationMethod">Application method</label>
-            <input
+            <select
               id="applicationMethod"
-              type="text"
+              className="profile-select"
               value={applicationMethod}
               onChange={(e) => setApplicationMethod(e.target.value)}
-            />
+            >
+              <option value="">Not specified</option>
+              {APPLICATION_METHOD_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option === 'Online' ? 'Online (legacy)' : option}
+                </option>
+              ))}
+            </select>
 
             <label htmlFor="notes">Notes</label>
             <textarea

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Modal from './Modal';
+import { APPLICATION_METHOD_OPTIONS } from '../jobFormat';
 
 const INTERVIEW_EVENT_NAMES = ['Interview scheduled', 'Interview completed'];
 const INTERVIEW_TYPE_OPTIONS = ['AI', 'Remote', 'In person'];
@@ -123,12 +124,19 @@ function AddEventDialog({
         {eventName === 'Applied' && (
           <>
             <label htmlFor="applicationMethod">Application method</label>
-            <input
+            <select
               id="applicationMethod"
-              type="text"
+              className="profile-select"
               value={applicationMethod}
               onChange={(e) => setApplicationMethod(e.target.value)}
-            />
+            >
+              <option value="">Not specified</option>
+              {APPLICATION_METHOD_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {option === 'Online' ? 'Online (legacy)' : option}
+                </option>
+              ))}
+            </select>
 
             <label htmlFor="eventDate">Date</label>
             <input
