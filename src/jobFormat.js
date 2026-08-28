@@ -6,6 +6,14 @@ export const JOB_LIST_COLUMNS =
 // something that already happened and shouldn't surface as an alert.
 export const UPCOMING_EVENT_NAMES = ['Interview scheduled'];
 
+// Scheduled/cancelled/completed are treated as one interchangeable stage
+// throughout the app — see getAvailableEventNames below.
+export const INTERVIEW_EVENT_NAMES = [
+  'Interview scheduled',
+  'Interview cancelled',
+  'Interview completed',
+];
+
 const SALARY_TYPE_LABELS = {
   annual: '/yr',
   monthly: '/mo',
@@ -39,10 +47,55 @@ export const STATUS_ORDER = [
   'Applied',
   'Application acknowledged',
   'Interview scheduled',
+  'Interview cancelled',
   'Interview completed',
   'Offer received',
-  'Assume unsuccessful',
+  'Offer accepted',
+  'Unsuccessful',
+  'Other',
 ];
+
+// Linear progression used to decide which events make sense to log next,
+// given the job's current status. Doesn't include 'Interested' (the
+// starting point, not something you log) or 'Other' (always offered
+// separately, handled as a special case below).
+const EVENT_PROGRESSION = [
+  'Applied',
+  'Application acknowledged',
+  'Interview scheduled',
+  'Interview cancelled',
+  'Interview completed',
+  'Offer received',
+  'Offer accepted',
+  'Unsuccessful',
+];
+
+// Which event names should appear in "Add event" for a job currently at
+// the given status. Rules:
+// - 'Other' is always offered.
+// - From 'Interested', only 'Applied' (plus 'Other') makes sense.
+// - From 'Other', the status is ambiguous, so every event is offered.
+// - Otherwise, only events later in the progression than the current
+//   status are offered — except the three interview events are treated
+//   as a single stage: if any of them would be offered, all three are.
+export function getAvailableEventNames(status) {
+  if (status === 'Interested') return ['Applied', 'Other'];
+  if (status === 'Other') return [...EVENT_PROGRESSION, 'Other'];
+
+  const currentIndex = EVENT_PROGRESSION.indexOf(status);
+  let options =
+    currentIndex === -1
+      ? [...EVENT_PROGRESSION]
+      : EVENT_PROGRESSION.slice(currentIndex + 1);
+
+  if (options.some((name) => INTERVIEW_EVENT_NAMES.includes(name))) {
+    options = EVENT_PROGRESSION.filter(
+      (name) => INTERVIEW_EVENT_NAMES.includes(name) || options.includes(name),
+    );
+  }
+
+  return [...options, 'Other'];
+}
 
 const SALARY_BASIS_LABELS = {
   flat_estimated: ' (estimated)',

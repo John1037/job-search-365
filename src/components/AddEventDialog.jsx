@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import Modal from './Modal';
-import { APPLICATION_METHOD_OPTIONS } from '../jobFormat';
+import {
+  APPLICATION_METHOD_OPTIONS,
+  INTERVIEW_EVENT_NAMES,
+} from '../jobFormat';
 
-const INTERVIEW_EVENT_NAMES = ['Interview scheduled', 'Interview completed'];
 const INTERVIEW_TYPE_OPTIONS = ['AI', 'Remote', 'In person'];
+const NO_EXTRA_FIELDS_EVENT_NAMES = [
+  'Offer received',
+  'Offer accepted',
+  'Unsuccessful',
+];
 
 function todayDateString() {
   return new Date().toISOString().slice(0, 10);
@@ -22,6 +29,7 @@ function AddEventDialog({
   const [eventType, setEventType] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
+  const [otherDetail, setOtherDetail] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -32,6 +40,7 @@ function AddEventDialog({
     setEventType('');
     setEventDate('');
     setEventTime('');
+    setOtherDetail('');
     setError(null);
   }
 
@@ -54,8 +63,11 @@ function AddEventDialog({
       setEventType('');
       setEventDate('');
       setEventTime('');
+    } else if (name === 'Other') {
+      setOtherDetail('');
+      setEventDate(todayDateString());
     } else {
-      // Offer received, Other — no extra fields defined yet.
+      // Offer received, Offer accepted, Unsuccessful — no extra fields.
       setEventDate(todayDateString());
     }
   }
@@ -81,6 +93,8 @@ function AddEventDialog({
     } else if (INTERVIEW_EVENT_NAMES.includes(eventName)) {
       payload.event_type = eventType;
       payload.event_time = eventTime || null;
+    } else if (eventName === 'Other') {
+      payload.event_type = otherDetail || null;
     }
 
     const result = await onSubmit(payload);
@@ -207,7 +221,19 @@ function AddEventDialog({
           </>
         )}
 
-        {(eventName === 'Offer received' || eventName === 'Other') && (
+        {eventName === 'Other' && (
+          <>
+            <label htmlFor="otherDetail">Details</label>
+            <input
+              id="otherDetail"
+              type="text"
+              value={otherDetail}
+              onChange={(e) => setOtherDetail(e.target.value)}
+            />
+          </>
+        )}
+
+        {NO_EXTRA_FIELDS_EVENT_NAMES.includes(eventName) && (
           <p className="field-hint">No additional details needed yet.</p>
         )}
 

@@ -4,11 +4,13 @@ import { supabase } from '../supabaseClient';
 import AddEventDialog from '../components/AddEventDialog';
 import ConnectDocumentDialog from '../components/ConnectDocumentDialog';
 import ManageDocumentsDialog from '../components/ManageDocumentsDialog';
+import GenerateCoverLetterDialog from '../components/GenerateCoverLetterDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   formatEventDateTime,
   formatStatusDate,
   APPLICATION_METHOD_OPTIONS,
+  getAvailableEventNames,
 } from '../jobFormat';
 import { sortedCurrencies } from '../data/currencies';
 
@@ -49,6 +51,7 @@ function JobDetail() {
   const [connectedDocs, setConnectedDocs] = useState({});
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   const [manageDocsOpen, setManageDocsOpen] = useState(false);
+  const [coverLetterDialogOpen, setCoverLetterDialogOpen] = useState(false);
   const [docsError, setDocsError] = useState(null);
 
   const documentSlots = [
@@ -245,6 +248,10 @@ function JobDetail() {
       jobUpdates.application_method = newApplicationMethod || null;
     }
 
+    if (eventInput.event_name === 'Unsuccessful') {
+      jobUpdates.is_closed = true;
+    }
+
     const { error: statusError } = await supabase
       .from('jobs')
       .update(jobUpdates)
@@ -303,6 +310,10 @@ function JobDetail() {
 
     if (newStatus !== 'Application acknowledged') {
       jobUpdates.expected_response_date = null;
+    }
+
+    if (eventToDelete.event_name === 'Unsuccessful') {
+      jobUpdates.is_closed = false;
     }
 
     const { error: statusError } = await supabase
@@ -426,16 +437,18 @@ function JobDetail() {
     );
   }
 
-  const eventNameOptions =
-    job.status === 'Interested'
-      ? ['Applied']
-      : [
-          'Application acknowledged',
-          'Interview scheduled',
-          'Interview completed',
-          'Offer received',
-          'Other',
-        ];
+  const eventNameOptions = getAvailableEventNames(job.status);
+
+  const connectedCv = connectedDocs.cv_document_id;
+  const canGenerateCoverLetter =
+    !!description && !!connectedCv?.file_name?.toLowerCase().endsWith('.pdf');
+  const coverLetterHint = !description
+    ? 'Add a job description to enable this.'
+    : !connectedCv
+      ? 'Connect a CV to enable this.'
+      : !canGenerateCoverLetter
+        ? 'Connect a PDF CV to enable this.'
+        : null;
 
   return (
     <div className="job-detail-page">
@@ -773,6 +786,22 @@ function JobDetail() {
                 Manage documents
               </button>
             )}
+
+            {job.status === 'Interested' && (
+              <>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  disabled={!canGenerateCoverLetter}
+                  onClick={() => setCoverLetterDialogOpen(true)}
+                >
+                  Suggest cover letter
+                </button>
+                {coverLetterHint && (
+                  <p className="field-hint">{coverLetterHint}</p>
+                )}
+              </>
+            )}
           </div>
 
           <div className="job-detail-actions">
@@ -872,6 +901,17 @@ function JobDetail() {
         onView={handleViewDocument}
         onDisconnect={handleDisconnectDocument}
         canDisconnect={job.status === 'Interested'}
+      />
+
+      <GenerateCoverLetterDialog
+        open={coverLetterDialogOpen}
+        onClose={() => setCoverLetterDialogOpen(false)}
+        jobId={id}
+        employer={employer}
+        onSave={(doc) => {
+          handleConnectDocument(doc, 'cover_letter');
+          setCoverLetterDialogOpen(false);
+        }}
       />
 
       <ConfirmDialog

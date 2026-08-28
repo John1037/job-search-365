@@ -6,3 +6,6 @@
 .env.keys
 .env.local
 .env.*.local
+
+# Local edge function secrets (e.g. DEEPSEEK_API_KEY for `functions serve`)
+.env
