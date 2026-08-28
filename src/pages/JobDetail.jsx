@@ -47,6 +47,7 @@ function JobDetail() {
 
   const [addEventOpen, setAddEventOpen] = useState(false);
   const [eventPendingDelete, setEventPendingDelete] = useState(null);
+  const [jobDeletePending, setJobDeletePending] = useState(false);
 
   const [connectedDocs, setConnectedDocs] = useState({});
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
@@ -418,6 +419,57 @@ function JobDetail() {
     setJob((j) => ({ ...j, favorite_level: level }));
   }
 
+  async function handleCloseJob() {
+    setError(null);
+    const now = new Date().toISOString();
+
+    const { error: updateError } = await supabase
+      .from('jobs')
+      .update({ is_closed: true, updated_at: now })
+      .eq('id', id);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    setJob((j) => ({ ...j, is_closed: true, updated_at: now }));
+  }
+
+  async function handleReopenJob() {
+    setError(null);
+    const now = new Date().toISOString();
+
+    const { error: updateError } = await supabase
+      .from('jobs')
+      .update({ is_closed: false, updated_at: now })
+      .eq('id', id);
+
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+
+    setJob((j) => ({ ...j, is_closed: false, updated_at: now }));
+  }
+
+  async function handleConfirmDeleteJob() {
+    setError(null);
+
+    const { error: deleteError } = await supabase
+      .from('jobs')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      setJobDeletePending(false);
+      return;
+    }
+
+    navigate('/jobs');
+  }
+
   if (loading) {
     return <div className="page-content">Loading…</div>;
   }
@@ -745,6 +797,33 @@ function JobDetail() {
               <button type="submit" disabled={saving}>
                 {saving ? 'Saving…' : 'Save details'}
               </button>
+
+              <div className="job-detail-danger-actions">
+                {job.is_closed ? (
+                  <button
+                    type="button"
+                    className="button-outline"
+                    onClick={handleReopenJob}
+                  >
+                    Reopen
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="button-outline"
+                    onClick={handleCloseJob}
+                  >
+                    Close
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="button-outline item-delete"
+                  onClick={() => setJobDeletePending(true)}
+                >
+                  Delete
+                </button>
+              </div>
             </div>
           </form>
         </div>
@@ -921,6 +1000,15 @@ function JobDetail() {
         confirmLabel="Delete"
         onConfirm={handleConfirmDeleteEvent}
         onCancel={() => setEventPendingDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={jobDeletePending}
+        title="Delete job?"
+        message={`Delete "${job.job_title}" at "${job.employer}"? This can't be undone.`}
+        confirmLabel="Delete"
+        onConfirm={handleConfirmDeleteJob}
+        onCancel={() => setJobDeletePending(false)}
       />
     </div>
   );

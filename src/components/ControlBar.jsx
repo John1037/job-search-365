@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import PersonIcon from './PersonIcon';
 import NavDropdown from './NavDropdown';
+import AddJobDialog from './AddJobDialog';
 
 function ControlBar({ avatarUrl, country }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addJobOpen, setAddJobOpen] = useState(false);
   const menuRef = useRef(null);
   const navigate = useNavigate();
 
@@ -42,7 +44,7 @@ function ControlBar({ avatarUrl, country }) {
   ];
 
   const jobsItems = [
-    { label: 'Add a job', onClick: () => navigate('/jobs/new') },
+    { label: 'Add a job', onClick: () => setAddJobOpen(true) },
     { label: 'Manage jobs', onClick: () => navigate('/jobs') },
     { label: 'View closed jobs', onClick: () => navigate('/jobs/closed') },
   ];
@@ -113,6 +115,8 @@ function ControlBar({ avatarUrl, country }) {
           )}
         </div>
       </div>
+
+      <AddJobDialog open={addJobOpen} onClose={() => setAddJobOpen(false)} />
     </header>
   );
 }

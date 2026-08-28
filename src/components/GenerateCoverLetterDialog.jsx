@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import Modal from './Modal';
+import LoadingBar from './LoadingBar';
 import { supabase } from '../supabaseClient';
 
 // Loaded on demand (only when a letter is actually saved) since jsPDF adds
@@ -159,7 +160,12 @@ function GenerateCoverLetterDialog({ open, onClose, jobId, employer, onSave }) {
       >
         <h2>Suggest cover letter</h2>
 
-        {loading && <p>Drafting your cover letter…</p>}
+        {loading && (
+          <>
+            <p>Drafting your cover letter…</p>
+            <LoadingBar />
+          </>
+        )}
 
         {error && <p className="form-error">{error}</p>}
 

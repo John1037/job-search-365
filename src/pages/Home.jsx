@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import JobListItem from '../components/JobListItem';
+import AddJobDialog from '../components/AddJobDialog';
 import {
   JOB_LIST_COLUMNS,
   UPCOMING_EVENT_NAMES,
@@ -41,6 +42,7 @@ function Home() {
   const [interested, setInterested] = useState([]);
   const [loadingInterested, setLoadingInterested] = useState(true);
   const [interestedError, setInterestedError] = useState(null);
+  const [addJobOpen, setAddJobOpen] = useState(false);
 
   useEffect(() => {
     async function loadAlerts() {
@@ -250,8 +252,15 @@ function Home() {
           <p>Loading…</p>
         ) : applications.length === 0 ? (
           <p className="field-hint">
-            No current applications. <Link to="/jobs/new">Add a job</Link> to
-            get started.
+            No current applications.{' '}
+            <button
+              type="button"
+              className="inline-link-button"
+              onClick={() => setAddJobOpen(true)}
+            >
+              Add a job
+            </button>{' '}
+            to get started.
           </p>
         ) : (
           <ul className="item-list">
@@ -271,8 +280,15 @@ function Home() {
           <p>Loading…</p>
         ) : interested.length === 0 ? (
           <p className="field-hint">
-            No interested jobs yet. <Link to="/jobs/new">Add a job</Link> to
-            get started.
+            No interested jobs yet.{' '}
+            <button
+              type="button"
+              className="inline-link-button"
+              onClick={() => setAddJobOpen(true)}
+            >
+              Add a job
+            </button>{' '}
+            to get started.
           </p>
         ) : (
           <ul className="item-list">
@@ -287,6 +303,8 @@ function Home() {
         <h2>Potential jobs</h2>
         <p className="field-hint">Coming soon.</p>
       </section>
+
+      <AddJobDialog open={addJobOpen} onClose={() => setAddJobOpen(false)} />
     </div>
   );
 }

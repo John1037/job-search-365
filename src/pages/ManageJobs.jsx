@@ -5,6 +5,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import FilterJobsDialog from '../components/FilterJobsDialog';
 import SortJobsDialog from '../components/SortJobsDialog';
 import JobCard from '../components/JobCard';
+import AddJobDialog from '../components/AddJobDialog';
 import { JOB_LIST_COLUMNS } from '../jobFormat';
 import {
   EMPTY_FILTERS,
@@ -27,6 +28,7 @@ function ManageJobs({ closed = false }) {
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [sortLevels, setSortLevels] = useState([]);
   const [sortDialogOpen, setSortDialogOpen] = useState(false);
+  const [addJobOpen, setAddJobOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? '');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
   const [crossScopeCount, setCrossScopeCount] = useState(0);
@@ -227,7 +229,7 @@ function ManageJobs({ closed = false }) {
             Sort by{sortLevels.length > 0 ? ` (${sortLevels.length})` : ''}
           </button>
           {!closed && (
-            <button type="button" onClick={() => navigate('/jobs/new')}>
+            <button type="button" onClick={() => setAddJobOpen(true)}>
               Add a job
             </button>
           )}
@@ -399,6 +401,8 @@ function ManageJobs({ closed = false }) {
         usedFields={sortLevels.map((l) => l.field)}
         levelNumber={sortLevels.length + 1}
       />
+
+      <AddJobDialog open={addJobOpen} onClose={() => setAddJobOpen(false)} />
     </div>
   );
 }

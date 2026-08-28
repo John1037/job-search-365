@@ -643,11 +643,61 @@ body {
   margin: 2px 0 0;
 }
 
+/* Indeterminate progress indicator for async LLM operations — a single
+   band that repeats scrolling left-to-right, since there's no real percent
+   complete to show. */
+.loading-bar {
+  position: relative;
+  height: 4px;
+  width: 100%;
+  overflow: hidden;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 16px;
+}
+
+.loading-bar-fill {
+  position: absolute;
+  top: 0;
+  left: -30%;
+  height: 100%;
+  width: 30%;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: loading-bar-scroll 1.2s ease-in-out infinite;
+}
+
+@keyframes loading-bar-scroll {
+  0% {
+    left: -30%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
 .field-hint {
   color: var(--text);
   opacity: 0.7;
   font-size: 13px;
   margin: 2px 0 0;
+}
+
+/* A link-styled button embedded mid-sentence in prose (e.g. empty-state
+   hints) — resets button chrome so it reads as inline text, not a control. */
+.inline-link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.inline-link-button:hover {
+  color: var(--accent-hover);
 }
 
 /* Same look as .field-hint, but with the bottom margin an .item-list would
@@ -665,6 +715,12 @@ body {
   align-items: center;
   gap: 16px;
   margin-top: 20px;
+}
+
+.job-detail-danger-actions {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
 }
 
 .profile-form-actions button[type='submit'] {
@@ -1152,6 +1208,7 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  margin-top: 16px;
 }
 
 .confirm-danger-button {
