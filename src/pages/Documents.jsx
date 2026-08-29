@@ -13,6 +13,13 @@ const ALLOWED_TYPES = [
 const SIGNED_URL_TTL_SECONDS = 60;
 const FIXED_CATEGORIES = ['cv', 'cover_letter', 'certificate'];
 
+function sortDocuments(docs) {
+  return [...docs].sort((a, b) => {
+    if (a.is_default !== b.is_default) return a.is_default ? -1 : 1;
+    return b.uploaded_at.localeCompare(a.uploaded_at);
+  });
+}
+
 const CATEGORY_LABELS = {
   cv: (country) => (country === 'US' ? 'Resumes' : 'CVs'),
   cover_letter: () => 'Cover letters',
@@ -62,9 +69,9 @@ function Documents() {
         ? query.not('category', 'in', `(${FIXED_CATEGORIES.join(',')})`)
         : query.eq('category', category);
 
-      const { data, error } = await query.order('uploaded_at', {
-        ascending: false,
-      });
+      const { data, error } = await query
+        .order('is_default', { ascending: false })
+        .order('uploaded_at', { ascending: false });
 
       if (error) {
         setError(error.message);
@@ -110,7 +117,7 @@ function Documents() {
       return { error: insertError.message };
     }
 
-    setDocuments((docs) => [inserted, ...docs]);
+    setDocuments((docs) => sortDocuments([inserted, ...docs]));
     return {};
   }
 
@@ -202,10 +209,12 @@ function Documents() {
     }
 
     setDocuments((docs) =>
-      docs.map((d) => ({
-        ...d,
-        is_default: d.id === doc.id ? true : d.category === doc.category ? false : d.is_default,
-      })),
+      sortDocuments(
+        docs.map((d) => ({
+          ...d,
+          is_default: d.id === doc.id ? true : d.category === doc.category ? false : d.is_default,
+        })),
+      ),
     );
   }
 
