@@ -4,6 +4,8 @@
 // this is the only signal an account owner gets if their email was switched
 // without their knowledge.
 
+import { timingSafeEqual } from 'jsr:@std/crypto/timing-safe-equal';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'content-type, x-webhook-secret',
@@ -88,7 +90,16 @@ Deno.serve(async (req) => {
   const providedSecret = req.headers.get('X-Webhook-Secret');
   const expectedSecret = Deno.env.get('EMAIL_CHANGE_WEBHOOK_SECRET');
 
-  if (!expectedSecret || providedSecret !== expectedSecret) {
+  // Constant-time comparison — a plain !== leaks a timing signal that
+  // could in principle help an attacker recover the secret byte-by-byte.
+  const encoder = new TextEncoder();
+  const secretIsValid =
+    !!expectedSecret &&
+    !!providedSecret &&
+    providedSecret.length === expectedSecret.length &&
+    timingSafeEqual(encoder.encode(providedSecret), encoder.encode(expectedSecret));
+
+  if (!secretIsValid) {
     return jsonResponse({ error: 'Unauthorized' }, 401);
   }
 

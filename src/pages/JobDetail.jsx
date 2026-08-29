@@ -400,7 +400,18 @@ function JobDetail() {
       return;
     }
 
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    // Fetch the file ourselves rather than opening the signed URL directly —
+    // that URL carries a (short-lived, single-object) access token, and
+    // opening it directly would put that token in the visible address bar
+    // and permanent browser history. Opening a local blob: URL instead
+    // means the token is only ever used in this one background request.
+    const fileResponse = await fetch(data.signedUrl);
+    if (!fileResponse.ok) {
+      setDocsError('Failed to load document');
+      return;
+    }
+    const blobUrl = URL.createObjectURL(await fileResponse.blob());
+    window.open(blobUrl, '_blank', 'noopener,noreferrer');
   }
 
   async function handleSetFavorite(level) {
