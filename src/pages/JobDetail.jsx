@@ -5,6 +5,7 @@ import AddEventDialog from '../components/AddEventDialog';
 import ConnectDocumentDialog from '../components/ConnectDocumentDialog';
 import ManageDocumentsDialog from '../components/ManageDocumentsDialog';
 import GenerateCoverLetterDialog from '../components/GenerateCoverLetterDialog';
+import OptimizeCvDialog from '../components/OptimizeCvDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   formatEventDateTime,
@@ -53,6 +54,7 @@ function JobDetail() {
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   const [manageDocsOpen, setManageDocsOpen] = useState(false);
   const [coverLetterDialogOpen, setCoverLetterDialogOpen] = useState(false);
+  const [optimizeCvDialogOpen, setOptimizeCvDialogOpen] = useState(false);
   const [docsError, setDocsError] = useState(null);
 
   const documentSlots = [
@@ -144,10 +146,11 @@ function JobDetail() {
 
       const { data: eventsData, error: eventsError } = await supabase
         .from('events')
-        .select('id, event_name, event_type, event_date, event_time, location')
+        .select(
+          'id, event_name, event_type, event_date, event_time, location, created_at',
+        )
         .eq('job_id', id)
-        .order('event_date', { ascending: false })
-        .order('event_time', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (eventsError) {
         setError(eventsError.message);
@@ -228,7 +231,9 @@ function JobDetail() {
         user_id: user.id,
         ...eventFields,
       })
-      .select('id, event_name, event_type, event_date, event_time, location')
+      .select(
+        'id, event_name, event_type, event_date, event_time, location, created_at',
+      )
       .single();
 
     if (insertError) return { error: insertError.message };
@@ -267,12 +272,7 @@ function JobDetail() {
     }
 
     setEvents((evts) =>
-      [...evts, data].sort((a, b) => {
-        if (a.event_date !== b.event_date) {
-          return b.event_date.localeCompare(a.event_date);
-        }
-        return (b.event_time ?? '').localeCompare(a.event_time ?? '');
-      }),
+      [...evts, data].sort((a, b) => b.created_at.localeCompare(a.created_at)),
     );
 
     setAddEventOpen(false);
@@ -876,6 +876,14 @@ function JobDetail() {
                 >
                   Suggest cover letter
                 </button>
+                <button
+                  type="button"
+                  className="button-secondary"
+                  disabled={!canGenerateCoverLetter}
+                  onClick={() => setOptimizeCvDialogOpen(true)}
+                >
+                  Optimize {cvWord}
+                </button>
                 {coverLetterHint && (
                   <p className="field-hint">{coverLetterHint}</p>
                 )}
@@ -990,6 +998,18 @@ function JobDetail() {
         onSave={(doc) => {
           handleConnectDocument(doc, 'cover_letter');
           setCoverLetterDialogOpen(false);
+        }}
+      />
+
+      <OptimizeCvDialog
+        open={optimizeCvDialogOpen}
+        onClose={() => setOptimizeCvDialogOpen(false)}
+        jobId={id}
+        employer={employer}
+        cvWord={cvWord}
+        onSave={(doc) => {
+          handleConnectDocument(doc, 'cv');
+          setOptimizeCvDialogOpen(false);
         }}
       />
 
