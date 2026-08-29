@@ -1165,6 +1165,17 @@ body {
   white-space: nowrap;
 }
 
+.item-default-slot {
+  flex: 0 0 auto;
+  width: 132px;
+  display: flex;
+  justify-content: center;
+}
+
+.item-default-slot .button-outline {
+  white-space: nowrap;
+}
+
 .document-row .item-name-primary {
   white-space: normal;
   overflow: visible;

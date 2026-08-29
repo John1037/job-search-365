@@ -307,17 +307,19 @@ function Documents() {
                   {new Date(doc.uploaded_at).toLocaleDateString()}
                 </span>
                 <div className="item-actions">
-                  {doc.is_default ? (
-                    <span className="item-badge">Default</span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="button-outline"
-                      onClick={() => handleSetDefault(doc)}
-                    >
-                      Set as default
-                    </button>
-                  )}
+                  <div className="item-default-slot">
+                    {doc.is_default ? (
+                      <span className="item-badge">Default</span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="button-outline"
+                        onClick={() => handleSetDefault(doc)}
+                      >
+                        Set as default
+                      </button>
+                    )}
+                  </div>
                   <button
                     type="button"
                     className="button-outline"
