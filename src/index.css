@@ -745,7 +745,7 @@ body {
 
 .list-page {
   padding: 24px;
-  max-width: 640px;
+  max-width: 820px;
 }
 
 .list-page-wide {
@@ -1163,6 +1163,35 @@ body {
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.document-row .item-name-primary {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  word-break: break-word;
+}
+
+.document-row-details {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 640px) {
+  .document-row {
+    flex-wrap: wrap;
+  }
+
+  .document-row .item-name {
+    flex: 1 1 100%;
+  }
+
+  .document-row-details {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
 }
 
 .confirm-overlay {

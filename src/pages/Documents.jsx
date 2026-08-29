@@ -286,42 +286,44 @@ function Documents() {
       ) : (
         <ul className="item-list">
           {documents.map((doc) => (
-            <li key={doc.id} className="item-row">
+            <li key={doc.id} className="item-row document-row">
               <span className="item-name">
                 <span className="item-name-primary">{doc.file_name}</span>
                 {isOther && doc.category && (
                   <span className="item-subtext">{doc.category}</span>
                 )}
               </span>
-              <span className="item-meta">
-                {new Date(doc.uploaded_at).toLocaleDateString()}
-              </span>
-              <div className="item-actions">
-                {doc.is_default ? (
-                  <span className="item-badge">Default</span>
-                ) : (
+              <div className="document-row-details">
+                <span className="item-meta">
+                  {new Date(doc.uploaded_at).toLocaleDateString()}
+                </span>
+                <div className="item-actions">
+                  {doc.is_default ? (
+                    <span className="item-badge">Default</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className="button-outline"
+                      onClick={() => handleSetDefault(doc)}
+                    >
+                      Set as default
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="button-outline"
-                    onClick={() => handleSetDefault(doc)}
+                    onClick={() => handleView(doc)}
                   >
-                    Set as default
+                    View
                   </button>
-                )}
-                <button
-                  type="button"
-                  className="button-outline"
-                  onClick={() => handleView(doc)}
-                >
-                  View
-                </button>
-                <button
-                  type="button"
-                  className="button-outline item-delete"
-                  onClick={() => setDocPendingDelete(doc)}
-                >
-                  Delete
-                </button>
+                  <button
+                    type="button"
+                    className="button-outline item-delete"
+                    onClick={() => setDocPendingDelete(doc)}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             </li>
           ))}
