@@ -47,6 +47,7 @@ function ControlBar({ avatarUrl, country }) {
     { label: 'Add a job', onClick: () => setAddJobOpen(true) },
     { label: 'Manage jobs', onClick: () => navigate('/jobs') },
     { label: 'View closed jobs', onClick: () => navigate('/jobs/closed') },
+    { label: 'Inbox', onClick: () => navigate('/inbox') },
   ];
 
   return (

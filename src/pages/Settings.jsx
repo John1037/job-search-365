@@ -100,21 +100,6 @@ function Settings() {
       </section>
 
       <section className="settings-section">
-        <h2>Inbox</h2>
-        <p className="field-hint">
-          Connect Gmail to scan for application updates and review
-          suggested matches.
-        </p>
-        <button
-          type="button"
-          className="button-outline"
-          onClick={() => navigate('/inbox')}
-        >
-          Open Inbox
-        </button>
-      </section>
-
-      <section className="settings-section">
         <h2>Resources</h2>
         <p>
           <Link to="/privacy-policy">Privacy Policy</Link>

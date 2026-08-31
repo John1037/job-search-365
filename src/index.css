@@ -1753,8 +1753,13 @@ body {
   .landing-hero {
     display: flex;
     align-items: flex-start;
-    aspect-ratio: 1140 / 580;
-    max-height: 90svh;
+    /* Same shape as aspect-ratio: 1140 / 580 would give, capped at 90svh —
+       expressed via vw/svh directly (rather than aspect-ratio + max-height)
+       because that combination lets browsers shrink the box's WIDTH too
+       once max-height caps it, to preserve the ratio — leaving the page
+       background visible on both sides instead of the photo, even though
+       background-size: cover is meant to always fill the box completely. */
+    height: min(50.88vw, 90svh);
     padding: 70px 24px 0;
     background:
       linear-gradient(
