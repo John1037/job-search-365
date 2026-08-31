@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 
@@ -7,8 +7,18 @@ const GMAIL_OAUTH_STATE_KEY = 'gmail_oauth_state';
 function InboxCallback() {
   const navigate = useNavigate();
   const [error, setError] = useState(null);
+  const hasRunRef = useRef(false);
 
   useEffect(() => {
+    // Google's authorization code is single-use, so this effect must only
+    // actually run once per code — React can invoke effects twice on mount
+    // (StrictMode in development), which would otherwise fire two token
+    // exchanges for the same code: one succeeds, the other fails with
+    // "invalid_grant" and briefly renders an error before the successful
+    // one navigates away.
+    if (hasRunRef.current) return;
+    hasRunRef.current = true;
+
     async function run() {
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
