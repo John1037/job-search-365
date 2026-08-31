@@ -14,6 +14,8 @@ import ManageJobs from './pages/ManageJobs';
 import JobDetail from './pages/JobDetail';
 import Inbox from './pages/Inbox';
 import InboxCallback from './pages/InboxCallback';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
 
 function App() {
   const [session, setSession] = useState(undefined);
@@ -83,6 +85,8 @@ function App() {
           element={session ? <Navigate to="/main" replace /> : <Signup />}
         />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route
           element={session ? <Layout /> : <Navigate to="/" replace />}
         >

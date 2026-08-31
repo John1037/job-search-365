@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { getStoredTheme, setTheme } from '../theme';
 import { supabase } from '../supabaseClient';
 
@@ -97,6 +97,31 @@ function Settings() {
           ))}
         </select>
         {windowError && <p className="form-error">{windowError}</p>}
+      </section>
+
+      <section className="settings-section">
+        <h2>Inbox</h2>
+        <p className="field-hint">
+          Connect Gmail to scan for application updates and review
+          suggested matches.
+        </p>
+        <button
+          type="button"
+          className="button-outline"
+          onClick={() => navigate('/inbox')}
+        >
+          Open Inbox
+        </button>
+      </section>
+
+      <section className="settings-section">
+        <h2>Resources</h2>
+        <p>
+          <Link to="/privacy-policy">Privacy Policy</Link>
+        </p>
+        <p>
+          <Link to="/terms-of-service">Terms of Service</Link>
+        </p>
       </section>
 
       <button
