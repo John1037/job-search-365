@@ -89,6 +89,13 @@ Deno.serve(async (req) => {
   if (profileResponse.ok) {
     const profile = await profileResponse.json();
     emailAddress = profile.emailAddress ?? null;
+  } else {
+    const detail = await profileResponse.text();
+    console.log(
+      '[gmail-oauth-callback] profile fetch failed, connecting without an email address:',
+      profileResponse.status,
+      detail,
+    );
   }
 
   const accessTokenExpiresAt = new Date(
