@@ -16,9 +16,10 @@ function jsonResponse(body: unknown, status: number) {
 // Must exactly match the fixed event vocabulary in src/jobFormat.js —
 // duplicated here since Edge Functions (Deno) can't import frontend src/.
 // 'Other' is deliberately excluded: it's a free-text catch-all, not
-// something worth guessing at automatically.
-const EVENT_NAMES = [
-  'Applied',
+// something worth guessing at automatically. 'Applied' is also excluded
+// from what the classifier may suggest — the user already knows when they
+// applied, so it's never a useful inbox suggestion.
+const SUGGESTABLE_EVENT_NAMES = [
   'Application acknowledged',
   'Interview scheduled',
   'Interview cancelled',
@@ -28,10 +29,13 @@ const EVENT_NAMES = [
   'Unsuccessful',
 ];
 
+const INTERVIEW_EVENT_NAMES = ['Interview scheduled', 'Interview completed'];
+
 const SEARCH_KEYWORDS =
   '(interview OR application OR applying OR position OR offer OR candidacy OR recruiting OR regret OR "not moving forward" OR "thank you for applying")';
 const DEFAULT_LOOKBACK_DAYS = 90;
 const MAX_RESULTS = 50;
+const MAX_BODY_CHARS = 1500;
 
 function isValidDate(value: unknown): value is string {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -39,6 +43,59 @@ function isValidDate(value: unknown): value is string {
 
 function isValidTime(value: unknown): value is string {
   return typeof value === 'string' && /^\d{2}:\d{2}$/.test(value);
+}
+
+function decodeBase64Url(data: string): string {
+  const base64 = data.replace(/-/g, '+').replace(/_/g, '/');
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// Gmail's `snippet` field is only the first ~200 characters of a message —
+// often just a generic opening line ("Thank you for your interest...")
+// that reads the same whether the email is an acknowledgement, a
+// rejection, or an interview invite. The real outcome is usually further
+// into the body, so the classifier needs the actual message text, not
+// just the snippet. This walks the MIME part tree generically (works for
+// any provider's structure) rather than assuming a specific shape.
+function findPart(payload: any, mimeType: string): any | null {
+  if (!payload) return null;
+  if (payload.mimeType === mimeType && payload.body?.data) return payload;
+  if (Array.isArray(payload.parts)) {
+    for (const part of payload.parts) {
+      const found = findPart(part, mimeType);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function extractEmailText(payload: any): string {
+  const plainPart = findPart(payload, 'text/plain');
+  if (plainPart) return decodeBase64Url(plainPart.body.data);
+
+  const htmlPart = findPart(payload, 'text/html');
+  if (htmlPart) return stripHtml(decodeBase64Url(htmlPart.body.data));
+
+  return '';
 }
 
 async function refreshAccessToken(refreshToken: string) {
@@ -130,7 +187,7 @@ Deno.serve(async (req) => {
 
   const { data: openJobs, error: jobsError } = await supabaseUser
     .from('jobs')
-    .select('id, job_title, employer')
+    .select('id, job_title, employer, status')
     .eq('is_closed', false);
 
   if (jobsError) {
@@ -143,6 +200,25 @@ Deno.serve(async (req) => {
       200,
     );
   }
+
+  const jobsById = new Map(openJobs.map((j) => [j.id, j]));
+
+  // Needed to enforce: don't suggest "Application acknowledged" for a job
+  // that's already had an interview scheduled/completed — a generic-sounding
+  // acknowledgement email arriving after that point is ambiguous, not a
+  // real "acknowledged" event, so it should be left undetermined instead.
+  const { data: interviewEvents } = await supabaseUser
+    .from('events')
+    .select('job_id')
+    .in(
+      'job_id',
+      openJobs.map((j) => j.id),
+    )
+    .in('event_name', INTERVIEW_EVENT_NAMES);
+
+  const jobsWithInterviewHistory = new Set(
+    (interviewEvents ?? []).map((e) => e.job_id),
+  );
 
   const lookbackDate = connection.last_synced_at
     ? new Date(connection.last_synced_at)
@@ -201,16 +277,14 @@ Deno.serve(async (req) => {
     subject: string | null;
     date: string | null;
     snippet: string;
+    body: string;
   }[] = [];
 
   for (const ref of newRefs) {
     const detailUrl = new URL(
       `https://gmail.googleapis.com/gmail/v1/users/me/messages/${ref.id}`,
     );
-    detailUrl.searchParams.set('format', 'metadata');
-    detailUrl.searchParams.append('metadataHeaders', 'Subject');
-    detailUrl.searchParams.append('metadataHeaders', 'From');
-    detailUrl.searchParams.append('metadataHeaders', 'Date');
+    detailUrl.searchParams.set('format', 'full');
 
     const detailResponse = await fetch(detailUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -224,12 +298,15 @@ Deno.serve(async (req) => {
     const getHeader = (name: string) =>
       headers.find((h) => h.name === name)?.value ?? null;
 
+    const bodyText = extractEmailText(detail.payload).slice(0, MAX_BODY_CHARS);
+
     candidateEmails.push({
       message_id: ref.id,
       from: getHeader('From'),
       subject: getHeader('Subject'),
       date: getHeader('Date'),
       snippet: detail.snippet ?? '',
+      body: bodyText || (detail.snippet ?? ''),
     });
   }
 
@@ -238,31 +315,57 @@ Deno.serve(async (req) => {
     return jsonResponse({ matches_found: 0 }, 200);
   }
 
+  const jobsForPrompt = openJobs.map((j) => ({
+    id: j.id,
+    job_title: j.job_title,
+    employer: j.employer,
+    current_status: j.status,
+  }));
+
+  const emailsForPrompt = candidateEmails.map((e) => ({
+    message_id: e.message_id,
+    from: e.from,
+    subject: e.subject,
+    date: e.date,
+    body: e.body,
+  }));
+
   const systemPrompt =
-    'You match emails to job applications. Given a list of open job ' +
-    'applications (id, job title, employer) and a list of candidate ' +
-    'emails (message_id, subject, sender, date, snippet), decide for ' +
-    'each email:\n' +
+    'You match emails to job applications and identify what update they ' +
+    'represent, for a review queue a human will check before anything is ' +
+    'changed. Given a list of open job applications (id, title, employer, ' +
+    "current_status) and a list of candidate emails (message_id, subject, " +
+    'sender, date, body text), decide for each email:\n' +
     '- job_id: which job it is about, if any confident match exists — ' +
     'otherwise null. Only use a job_id that appears in the given job ' +
     'list, never invent one.\n' +
-    `- event_name: what update it represents, one of exactly ${JSON.stringify(EVENT_NAMES)} ` +
-    "— otherwise null if the email doesn't clearly represent one of these.\n" +
+    '- confident: true only if you can clearly and unambiguously tell ' +
+    "what update this email represents by actually reading its content — " +
+    'not just its tone or opening line. Read past a generic-sounding ' +
+    'opening ("thank you for applying...", "we appreciate your interest...") ' +
+    'to find the actual outcome stated later in the email — a politely or ' +
+    "softly worded email can still be a rejection, and a message that " +
+    "only confirms receipt with no further outcome is just an " +
+    'acknowledgement. If genuinely unclear, set confident to false rather ' +
+    'than guessing.\n' +
+    `- event_name: required when confident is true, one of exactly ${JSON.stringify(SUGGESTABLE_EVENT_NAMES)}. ` +
+    'Never suggest a status the job is already at (check current_status). ' +
+    'Set to null when confident is false.\n' +
     '- event_date (YYYY-MM-DD) and event_time (HH:MM, 24-hour): only if a ' +
     'specific date/time for the event is explicitly stated in the email ' +
     'text — otherwise null. Never infer or guess a date.\n' +
-    "Be conservative: if you're not confident about the job match, return " +
-    'null rather than guessing. Ignore newsletters, job alerts/recommendations ' +
-    'for new roles, marketing, and unrelated personal mail.\n' +
+    'Ignore newsletters, job alerts/recommendations for new roles, ' +
+    'marketing, and unrelated personal mail (return job_id null for these).\n' +
     'Respond with JSON: {"results": [{"message_id": "...", "job_id": ' +
-    '"..." | null, "event_name": "..." | null, "event_date": "..." | null, ' +
-    '"event_time": "..." | null}]}';
+    '"..." | null, "confident": true | false, "event_name": "..." | null, ' +
+    '"event_date": "..." | null, "event_time": "..." | null}]}';
 
-  const userPrompt = `Open jobs:\n${JSON.stringify(openJobs)}\n\nCandidate emails:\n${JSON.stringify(candidateEmails)}`;
+  const userPrompt = `Open jobs:\n${JSON.stringify(jobsForPrompt)}\n\nCandidate emails:\n${JSON.stringify(emailsForPrompt)}`;
 
   let classifications: {
     message_id?: string;
     job_id?: string | null;
+    confident?: boolean;
     event_name?: string | null;
     event_date?: string | null;
     event_time?: string | null;
@@ -288,7 +391,7 @@ Deno.serve(async (req) => {
             { role: 'user', content: userPrompt },
           ],
         }),
-        signal: AbortSignal.timeout(45000),
+        signal: AbortSignal.timeout(60000),
       },
     );
 
@@ -307,7 +410,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Failed to classify emails' }, 502);
   }
 
-  const jobIds = new Set(openJobs.map((j) => j.id));
   const emailsByMessageId = new Map(
     candidateEmails.map((e) => [e.message_id, e]),
   );
@@ -319,25 +421,53 @@ Deno.serve(async (req) => {
       ? emailsByMessageId.get(classification.message_id)
       : null;
     if (!email) continue;
-    if (!classification.job_id || !jobIds.has(classification.job_id)) continue;
-    if (!classification.event_name || !EVENT_NAMES.includes(classification.event_name)) {
-      continue;
+
+    const job = classification.job_id
+      ? jobsById.get(classification.job_id)
+      : null;
+    if (!job) continue;
+
+    let determined = false;
+    let eventName: string | null = null;
+
+    if (
+      classification.confident === true &&
+      classification.event_name &&
+      SUGGESTABLE_EVENT_NAMES.includes(classification.event_name)
+    ) {
+      if (classification.event_name === job.status) {
+        // The job is already at this status — nothing to review.
+        continue;
+      }
+
+      if (
+        classification.event_name === 'Application acknowledged' &&
+        jobsWithInterviewHistory.has(job.id)
+      ) {
+        // An "acknowledged"-sounding email after an interview has already
+        // happened doesn't fit the normal timeline — treat as undetermined
+        // rather than trusting the label.
+        determined = false;
+      } else {
+        determined = true;
+        eventName = classification.event_name;
+      }
     }
 
     rowsToInsert.push({
       user_id: user.id,
-      job_id: classification.job_id,
+      job_id: job.id,
       provider: 'gmail',
       provider_message_id: email.message_id,
       email_from: email.from,
       email_subject: email.subject,
       email_received_at: email.date ? new Date(email.date).toISOString() : null,
       email_snippet: email.snippet,
-      suggested_event_name: classification.event_name,
-      suggested_event_date: isValidDate(classification.event_date)
+      suggested_event_name: eventName,
+      suggested_event_date: determined && isValidDate(classification.event_date)
         ? classification.event_date
         : null,
-      suggested_event_time: isValidTime(classification.event_time)
+      suggested_event_time: determined && isValidTime(classification.event_time)
         ? classification.event_time
         : null,
     });

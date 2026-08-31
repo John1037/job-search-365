@@ -153,13 +153,17 @@ function Inbox() {
 
   async function handleDismiss(match) {
     setError(null);
-    const { error: updateError } = await supabase
+    // Deleted outright rather than marked dismissed — no reason to keep
+    // holding the email content once it's been reviewed. A future scan
+    // won't re-surface it: the sync cursor only looks at mail newer than
+    // the last scan, so an already-seen message won't be re-fetched.
+    const { error: deleteError } = await supabase
       .from('email_matches')
-      .update({ status: 'dismissed' })
+      .delete()
       .eq('id', match.id);
 
-    if (updateError) {
-      setError(updateError.message);
+    if (deleteError) {
+      setError(deleteError.message);
       return;
     }
 
@@ -177,12 +181,14 @@ function Inbox() {
     const result = await addJobEvent(jobId, eventInput);
     if (result.error) return { error: result.error };
 
-    const { error: updateError } = await supabase
+    // Deleted rather than marked confirmed — the event's now saved on the
+    // job itself, so there's no reason to keep the email content around.
+    const { error: deleteError } = await supabase
       .from('email_matches')
-      .update({ status: 'confirmed' })
+      .delete()
       .eq('id', confirmTarget.match.id);
 
-    if (updateError) return { error: updateError.message };
+    if (deleteError) return { error: deleteError.message };
 
     setOpenJobs((jobs) =>
       jobs.map((j) => (j.id === jobId ? { ...j, ...result.jobUpdates } : j)),
@@ -294,9 +300,15 @@ function Inbox() {
                         </option>
                       ))}
                     </select>
-                    <span className="item-badge">
-                      {match.suggested_event_name}
-                    </span>
+                    {match.suggested_event_name ? (
+                      <span className="item-badge">
+                        {match.suggested_event_name}
+                      </span>
+                    ) : (
+                      <span className="item-subtext">
+                        Unable to determine content
+                      </span>
+                    )}
                   </div>
 
                   <div className="item-actions">
@@ -307,19 +319,21 @@ function Inbox() {
                     >
                       Dismiss
                     </button>
-                    <button
-                      type="button"
-                      className="button-positive"
-                      disabled={!selectedJobByMatch[match.id]}
-                      onClick={() =>
-                        setConfirmTarget({
-                          match,
-                          jobId: selectedJobByMatch[match.id],
-                        })
-                      }
-                    >
-                      Confirm
-                    </button>
+                    {match.suggested_event_name && (
+                      <button
+                        type="button"
+                        className="button-positive"
+                        disabled={!selectedJobByMatch[match.id]}
+                        onClick={() =>
+                          setConfirmTarget({
+                            match,
+                            jobId: selectedJobByMatch[match.id],
+                          })
+                        }
+                      >
+                        Confirm
+                      </button>
+                    )}
                   </div>
                 </li>
               ))}
