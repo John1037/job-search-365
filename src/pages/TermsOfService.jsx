@@ -1,14 +1,10 @@
 import Footer from '../components/Footer';
+import LegalPageHeader from '../components/LegalPageHeader';
 
 function TermsOfService() {
   return (
     <>
-      <header className="control-bar">
-        <div className="control-bar-brand">
-          <img src="/favicon.svg" alt="" className="brand-icon" />
-          <span className="brand-text">Job Search 365</span>
-        </div>
-      </header>
+      <LegalPageHeader />
 
       <main className="legal-page">
         <h1>Terms of Service</h1>
