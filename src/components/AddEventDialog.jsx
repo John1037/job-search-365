@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import {
   APPLICATION_METHOD_OPTIONS,
@@ -22,6 +22,7 @@ function AddEventDialog({
   onSubmit,
   eventNameOptions,
   currentApplicationMethod,
+  initialValues,
 }) {
   const [eventName, setEventName] = useState('');
   const [applicationMethod, setApplicationMethod] = useState('');
@@ -71,6 +72,17 @@ function AddEventDialog({
       setEventDate(todayDateString());
     }
   }
+
+  // Pre-fills the form when opened from a suggested match (e.g. the Gmail
+  // inbox review queue) instead of always starting blank.
+  useEffect(() => {
+    if (!open || !initialValues?.eventName) return;
+
+    handleEventNameChange(initialValues.eventName);
+    if (initialValues.eventDate) setEventDate(initialValues.eventDate);
+    if (initialValues.eventTime) setEventTime(initialValues.eventTime);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   async function handleSubmit(e) {
     e.preventDefault();

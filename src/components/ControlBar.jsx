@@ -68,6 +68,9 @@ function ControlBar({ avatarUrl, country }) {
             items={documentsItems}
           />
           <NavDropdown label="Jobs" items={jobsItems} />
+          <Link to="/inbox" className="control-bar-nav-link">
+            Inbox
+          </Link>
         </nav>
 
         <div className="control-bar-profile" ref={menuRef}>

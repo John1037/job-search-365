@@ -12,6 +12,8 @@ import Settings from './pages/Settings';
 import AddJob from './pages/AddJob';
 import ManageJobs from './pages/ManageJobs';
 import JobDetail from './pages/JobDetail';
+import Inbox from './pages/Inbox';
+import InboxCallback from './pages/InboxCallback';
 
 function App() {
   const [session, setSession] = useState(undefined);
@@ -92,6 +94,8 @@ function App() {
           <Route path="/jobs/closed" element={<ManageJobs closed />} />
           <Route path="/jobs/new" element={<AddJob />} />
           <Route path="/jobs/:id" element={<JobDetail />} />
+          <Route path="/inbox" element={<Inbox />} />
+          <Route path="/inbox/callback" element={<InboxCallback />} />
         </Route>
         <Route
           path="*"

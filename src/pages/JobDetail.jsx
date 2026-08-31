@@ -13,6 +13,7 @@ import {
   APPLICATION_METHOD_OPTIONS,
   getAvailableEventNames,
 } from '../jobFormat';
+import { addJobEvent } from '../jobEvents';
 import { sortedCurrencies } from '../data/currencies';
 
 function JobDetail() {
@@ -212,67 +213,20 @@ function JobDetail() {
   }
 
   async function handleAddEvent(eventInput) {
-    const {
-      expected_response_date,
-      application_method: newApplicationMethod,
-      ...eventFields
-    } = eventInput;
+    const result = await addJobEvent(id, eventInput);
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    if (result.error) return { error: result.error };
 
-    if (!user) return { error: 'Not signed in.' };
-
-    const { data, error: insertError } = await supabase
-      .from('events')
-      .insert({
-        job_id: id,
-        user_id: user.id,
-        ...eventFields,
-      })
-      .select(
-        'id, event_name, event_type, event_date, event_time, location, created_at',
-      )
-      .single();
-
-    if (insertError) return { error: insertError.message };
-
-    const now = new Date().toISOString();
-
-    const jobUpdates = {
-      status: eventInput.event_name,
-      status_updated_at: now,
-      updated_at: now,
-    };
-
-    if (eventInput.event_name === 'Application acknowledged') {
-      jobUpdates.expected_response_date = expected_response_date || null;
-    }
+    setJob((j) => ({ ...j, ...result.jobUpdates }));
 
     if (eventInput.event_name === 'Applied') {
-      jobUpdates.application_method = newApplicationMethod || null;
-    }
-
-    if (eventInput.event_name === 'Unsuccessful') {
-      jobUpdates.is_closed = true;
-    }
-
-    const { error: statusError } = await supabase
-      .from('jobs')
-      .update(jobUpdates)
-      .eq('id', id);
-
-    if (statusError) return { error: statusError.message };
-
-    setJob((j) => ({ ...j, ...jobUpdates }));
-
-    if (eventInput.event_name === 'Applied') {
-      setApplicationMethod(newApplicationMethod || '');
+      setApplicationMethod(result.applicationMethod || '');
     }
 
     setEvents((evts) =>
-      [...evts, data].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+      [...evts, result.event].sort((a, b) =>
+        b.created_at.localeCompare(a.created_at),
+      ),
     );
 
     setAddEventOpen(false);

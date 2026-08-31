@@ -27,6 +27,13 @@ Live at [jobsearch365.com](https://jobsearch365.com).
   connected PDF CV, generate a tailored cover letter draft from both,
   editable before saving as both `.txt` and `.pdf`, with the PDF connected
   to the job automatically.
+- **Gmail inbox scanning** — connect a Gmail account (read-only OAuth) and
+  scan recent mail for application updates. Candidate emails are matched
+  against your open jobs and classified into a suggested status update by
+  an LLM, landing in a review queue — nothing is written to a job until
+  you confirm it, opening the same event dialog used everywhere else,
+  pre-filled with the suggested event and date. Scanning is manual
+  ("Scan now") for now; nothing runs automatically in the background yet.
 - **AI CV optimization** — reorders a connected PDF CV's own content
   (skills, experience bullets, categorized tool lists) by relevance to a
   specific job's description — never adding, removing, or rewording
@@ -68,11 +75,13 @@ Live at [jobsearch365.com](https://jobsearch365.com).
   and three LLM-backed features (job import, cover letter drafting, CV
   optimization).
 - **AI:** [DeepSeek](https://www.deepseek.com) for job-listing extraction,
-  cover letter drafting, and CV content reordering (many small, targeted
-  calls per operation rather than one large one, run concurrently under a
-  shared limiter). PDF text/layout extraction via
+  cover letter drafting, CV content reordering, and email-to-job matching
+  (many small, targeted calls per operation rather than one large one, run
+  concurrently under a shared limiter). PDF text/layout extraction via
   [`unpdf`](https://github.com/unjs/unpdf); PDF generation via
   [`jsPDF`](https://github.com/parallax/jsPDF).
+- **Gmail:** OAuth 2.0 (read-only `gmail.readonly` scope) + the Gmail API,
+  called directly via `fetch()` rather than a client library.
 - **Email:** [Resend](https://resend.com) via custom SMTP, triggered
   partly by a Postgres trigger + `pg_net` calling an Edge Function
   directly from the database.
@@ -96,7 +105,8 @@ src/
   supabaseClient.js
 supabase/
   functions/      Edge Functions — delete-account, notify-email-changed,
-                  import-job-listing, generate-cover-letter, optimize-cv
+                  import-job-listing, generate-cover-letter, optimize-cv,
+                  gmail-oauth-callback, scan-gmail-inbox
   config.toml     Local Supabase CLI config
 ```
 
@@ -116,13 +126,24 @@ Environment variables (see `.env.example`):
 | -------------------------- | ---------------------------------------------- |
 | `VITE_SUPABASE_URL`        | Your Supabase project URL                      |
 | `VITE_SUPABASE_ANON_KEY`   | Supabase publishable (client-safe) API key     |
+| `VITE_GOOGLE_CLIENT_ID`    | Google OAuth 2.0 Client ID (Gmail inbox scanning) |
 
-The three AI-backed Edge Functions (`import-job-listing`,
-`generate-cover-letter`, `optimize-cv`) need a `DEEPSEEK_API_KEY` — this is
-a **Supabase Edge Function secret**, not a Vite/frontend env var, so it
-never goes in `.env`. Set it with `supabase secrets set
-DEEPSEEK_API_KEY=...` for a deployed project, or in a local, gitignored
-`supabase/.env` for `supabase functions serve`.
+The AI-backed Edge Functions (`import-job-listing`, `generate-cover-letter`,
+`optimize-cv`, `scan-gmail-inbox`) need a `DEEPSEEK_API_KEY` — this is a
+**Supabase Edge Function secret**, not a Vite/frontend env var, so it never
+goes in `.env`. Set it with `supabase secrets set DEEPSEEK_API_KEY=...` for
+a deployed project, or in a local, gitignored `supabase/.env` for `supabase
+functions serve`.
+
+Gmail inbox scanning additionally needs a Google Cloud OAuth 2.0 Client
+(Web application, `gmail.readonly` scope, authorized redirect URI
+`<your origin>/inbox/callback`). The Client ID is not secret and goes in
+`VITE_GOOGLE_CLIENT_ID` above; the Client Secret is a Supabase Edge
+Function secret (`GOOGLE_CLIENT_SECRET`), same pattern as
+`DEEPSEEK_API_KEY`. While the Google OAuth consent screen is in "Testing"
+mode (fine for personal use, no Google verification needed), granted
+refresh tokens expire after 7 days, so reconnecting periodically is
+expected.
 
 Other scripts:
 

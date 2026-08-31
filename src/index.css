@@ -257,6 +257,19 @@ body {
   font-size: 10px;
 }
 
+.control-bar-nav-link {
+  display: flex;
+  align-items: center;
+  padding: 6px 4px;
+  color: var(--text);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.control-bar-nav-link:hover {
+  color: var(--accent);
+}
+
 .label-short {
   display: none;
 }
@@ -1203,6 +1216,58 @@ body {
     flex: 1 1 100%;
     justify-content: space-between;
   }
+}
+
+.email-match-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.email-match-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  background: var(--bg);
+}
+
+.email-match-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.email-match-subject {
+  font-weight: 600;
+}
+
+.email-match-snippet {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.email-match-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.email-match-suggestion label {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.email-match-card .item-actions {
+  margin-top: 12px;
+  justify-content: flex-end;
 }
 
 .confirm-overlay {
