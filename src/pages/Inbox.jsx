@@ -46,7 +46,6 @@ function Inbox() {
         .select(
           'id, job_id, email_from, email_subject, email_received_at, email_snippet, suggested_event_name, suggested_event_date, suggested_event_time, created_at',
         )
-        .eq('status', 'pending')
         .order('created_at', { ascending: false }),
     ]);
 
