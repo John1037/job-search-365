@@ -97,15 +97,29 @@ function Inbox() {
 
   async function handleConfirmDisconnect() {
     setError(null);
-    const { error: deleteError } = await supabase
-      .from('email_connections')
-      .delete()
-      .eq('provider', 'gmail');
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      setError('Not signed in.');
+      setDisconnectPending(false);
+      return;
+    }
+
+    // Revokes the Google grant itself, not just our own record of it —
+    // otherwise access would silently remain active in the user's Google
+    // Account even after "disconnecting" here.
+    const { error: fnError } = await supabase.functions.invoke(
+      'gmail-disconnect',
+      { headers: { Authorization: `Bearer ${session.access_token}` } },
+    );
 
     setDisconnectPending(false);
 
-    if (deleteError) {
-      setError(deleteError.message);
+    if (fnError) {
+      setError(fnError.message);
       return;
     }
 
