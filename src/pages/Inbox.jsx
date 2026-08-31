@@ -22,7 +22,6 @@ function Inbox() {
   const [selectedJobByMatch, setSelectedJobByMatch] = useState({});
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
-  const [scanMessage, setScanMessage] = useState(null);
   const [error, setError] = useState(null);
   const [disconnectPending, setDisconnectPending] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
@@ -116,7 +115,6 @@ function Inbox() {
 
   async function handleScanNow() {
     setScanning(true);
-    setScanMessage(null);
     setError(null);
 
     const {
@@ -129,7 +127,7 @@ function Inbox() {
       return;
     }
 
-    const { data, error: fnError } = await supabase.functions.invoke(
+    const { error: fnError } = await supabase.functions.invoke(
       'scan-gmail-inbox',
       { headers: { Authorization: `Bearer ${session.access_token}` } },
     );
@@ -140,12 +138,6 @@ function Inbox() {
       setError(fnError.message);
       return;
     }
-
-    setScanMessage(
-      data.matches_found === 0
-        ? 'No new updates found.'
-        : `Found ${data.matches_found} possible update${data.matches_found === 1 ? '' : 's'}.`,
-    );
 
     await loadAll();
   }
@@ -227,7 +219,11 @@ function Inbox() {
 
       {error && <p className="form-error">{error}</p>}
       {scanning && <LoadingBar />}
-      {scanMessage && !scanning && <p className="field-hint">{scanMessage}</p>}
+      {!scanning && matches.length > 0 && (
+        <p className="field-hint">
+          Found {matches.length} possible update{matches.length === 1 ? '' : 's'}.
+        </p>
+      )}
 
       {loading ? (
         <p>Loading…</p>
