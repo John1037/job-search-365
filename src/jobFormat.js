@@ -14,6 +14,23 @@ export const INTERVIEW_EVENT_NAMES = [
   'Interview completed',
 ];
 
+// Extra modifier class for a status/event name shown via .item-badge —
+// '' keeps the default accent look. Kept in sync wherever a status or
+// suggested event is badged: job cards/list items/detail page, and the
+// Gmail inbox review queue.
+export function statusBadgeClass(status) {
+  if (status === 'Unsuccessful') return 'item-badge-error';
+  if (
+    status === 'Interview scheduled' ||
+    status === 'Interview completed' ||
+    status === 'Offer received' ||
+    status === 'Offer accepted'
+  ) {
+    return 'item-badge-success';
+  }
+  return '';
+}
+
 const SALARY_TYPE_LABELS = {
   annual: '/yr',
   monthly: '/mo',

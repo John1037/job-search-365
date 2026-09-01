@@ -171,7 +171,7 @@ function Landing() {
         </section>
       </main>
 
-      <Footer />
+      <Footer showLegalLinks />
 
       <LoginDialog open={loginOpen} onClose={() => setLoginOpen(false)} />
     </>

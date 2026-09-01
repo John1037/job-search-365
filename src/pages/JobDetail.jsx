@@ -12,6 +12,7 @@ import {
   formatStatusDate,
   APPLICATION_METHOD_OPTIONS,
   getAvailableEventNames,
+  statusBadgeClass,
 } from '../jobFormat';
 import { addJobEvent } from '../jobEvents';
 import { sortedCurrencies } from '../data/currencies';
@@ -486,7 +487,9 @@ function JobDetail() {
           </span>
         </div>
         <div className="status-with-date">
-          <span className="item-badge">{job.status}</span>
+          <span className={`item-badge ${statusBadgeClass(job.status)}`}>
+            {job.status}
+          </span>
           <span className="status-updated-label">
             Status updated {formatStatusDate(job.status_updated_at, country === 'US')}
           </span>

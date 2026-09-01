@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { getAvailableEventNames } from '../jobFormat';
+import { getAvailableEventNames, statusBadgeClass } from '../jobFormat';
 import { addJobEvent } from '../jobEvents';
 import AddEventDialog from '../components/AddEventDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -12,6 +12,7 @@ const GMAIL_OAUTH_STATE_KEY = 'gmail_oauth_state';
 function buildRedirectUri() {
   return `${window.location.origin}/inbox/callback`;
 }
+
 
 function Inbox() {
   const navigate = useNavigate();
@@ -255,8 +256,10 @@ function Inbox() {
         </>
       ) : (
         <>
-          <p className="field-hint">
-            Connected as {connection.email_address ?? 'your Gmail account'}.{' '}
+          <div className="inbox-connection-status">
+            <span className="inbox-connection-dot" aria-hidden="true" />
+            Connected as{' '}
+            <strong>{connection.email_address ?? 'your Gmail account'}</strong>
             <button
               type="button"
               className="inline-link-button"
@@ -264,7 +267,7 @@ function Inbox() {
             >
               Disconnect
             </button>
-          </p>
+          </div>
 
           {matches.length === 0 ? (
             <p className="empty-list-hint">
@@ -290,31 +293,35 @@ function Inbox() {
                   )}
 
                   <div className="email-match-suggestion">
-                    <label htmlFor={`job-${match.id}`}>Job</label>
-                    <select
-                      id={`job-${match.id}`}
-                      className="profile-select"
-                      value={selectedJobByMatch[match.id] ?? ''}
-                      onChange={(e) =>
-                        setSelectedJobByMatch((sel) => ({
-                          ...sel,
-                          [match.id]: e.target.value,
-                        }))
-                      }
-                    >
-                      <option value="">No match — pick a job</option>
-                      {openJobs.map((job) => (
-                        <option key={job.id} value={job.id}>
-                          {job.job_title} — {job.employer}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="email-match-job-picker">
+                      <label htmlFor={`job-${match.id}`}>Job</label>
+                      <select
+                        id={`job-${match.id}`}
+                        className="profile-select"
+                        value={selectedJobByMatch[match.id] ?? ''}
+                        onChange={(e) =>
+                          setSelectedJobByMatch((sel) => ({
+                            ...sel,
+                            [match.id]: e.target.value,
+                          }))
+                        }
+                      >
+                        <option value="">No match — pick a job</option>
+                        {openJobs.map((job) => (
+                          <option key={job.id} value={job.id}>
+                            {job.job_title} — {job.employer}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     {match.suggested_event_name ? (
-                      <span className="item-badge">
+                      <span
+                        className={`item-badge ${statusBadgeClass(match.suggested_event_name)}`}
+                      >
                         {match.suggested_event_name}
                       </span>
                     ) : (
-                      <span className="item-subtext">
+                      <span className="email-match-undetermined">
                         Unable to determine content
                       </span>
                     )}

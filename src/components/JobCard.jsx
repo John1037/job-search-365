@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { formatSalary, formatLocation } from '../jobFormat';
+import { formatSalary, formatLocation, statusBadgeClass } from '../jobFormat';
 
 function JobCard({ job, children }) {
   const salary = formatSalary(job);
@@ -35,7 +35,9 @@ function JobCard({ job, children }) {
       </div>
 
       <div className="job-card-actions">
-        <span className="item-badge">{job.status}</span>
+        <span className={`item-badge ${statusBadgeClass(job.status)}`}>
+          {job.status}
+        </span>
         <div className="item-actions">{children}</div>
       </div>
     </li>
