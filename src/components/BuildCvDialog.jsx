@@ -9,6 +9,16 @@ import { renderCvPdf, cvToPlainText, imageUrlToDataUrl } from '../cvTemplates/re
 
 const DEFAULT_RECENT_ROLES = 3;
 
+// Mobile browsers (no built-in PDF viewer) can't render the preview iframe
+// at all — showing it there is just a permanently blank box. `pdfViewerEnabled`
+// reports that capability directly where it's supported (Chrome/Edge/Firefox);
+// elsewhere (e.g. Safari, which lacks the API but does support inline PDFs)
+// default to showing it, since that matches current behavior there.
+const CAN_PREVIEW_INLINE =
+  typeof navigator !== 'undefined' && 'pdfViewerEnabled' in navigator
+    ? navigator.pdfViewerEnabled
+    : true;
+
 function toEditableList(strings) {
   return strings.map((text, i) => ({ id: `item-${i}`, text }));
 }
@@ -609,12 +619,13 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
 
             {previewUrl && (
               <>
-                <iframe title="CV preview" src={previewUrl} className="cv-preview-frame" />
-                {/* Mobile browsers have no built-in PDF viewer to render the
-                    iframe inline, so they fall back to auto-downloading it —
-                    a flow that's unreliable for blob: URLs on Android. A
-                    direct link the user taps themselves opens/downloads
-                    reliably on both mobile and desktop. */}
+                {CAN_PREVIEW_INLINE && (
+                  <iframe title="CV preview" src={previewUrl} className="cv-preview-frame" />
+                )}
+                {/* On browsers that can't render the iframe inline, this is
+                    the only way to see the preview — and even where the
+                    iframe does work, it's a reliable fallback (Android
+                    auto-download-from-iframe is flaky for blob: URLs). */}
                 <a
                   href={previewUrl}
                   target="_blank"
