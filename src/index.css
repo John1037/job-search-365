@@ -2441,3 +2441,11 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
 }
+
+.cv-preview-open-link {
+  display: block;
+  width: fit-content;
+  margin: 10px auto 0;
+  text-decoration: none;
+  text-align: center;
+}

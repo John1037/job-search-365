@@ -608,7 +608,22 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
             </div>
 
             {previewUrl && (
-              <iframe title="CV preview" src={previewUrl} className="cv-preview-frame" />
+              <>
+                <iframe title="CV preview" src={previewUrl} className="cv-preview-frame" />
+                {/* Mobile browsers have no built-in PDF viewer to render the
+                    iframe inline, so they fall back to auto-downloading it —
+                    a flow that's unreliable for blob: URLs on Android. A
+                    direct link the user taps themselves opens/downloads
+                    reliably on both mobile and desktop. */}
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="button-outline cv-preview-open-link"
+                >
+                  Open preview in a new tab
+                </a>
+              </>
             )}
           </>
         )}
