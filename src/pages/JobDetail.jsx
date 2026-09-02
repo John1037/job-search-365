@@ -5,7 +5,7 @@ import AddEventDialog from '../components/AddEventDialog';
 import ConnectDocumentDialog from '../components/ConnectDocumentDialog';
 import ManageDocumentsDialog from '../components/ManageDocumentsDialog';
 import GenerateCoverLetterDialog from '../components/GenerateCoverLetterDialog';
-import OptimizeCvDialog from '../components/OptimizeCvDialog';
+import BuildCvDialog from '../components/BuildCvDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   formatEventDateTime,
@@ -56,7 +56,7 @@ function JobDetail() {
   const [connectDialogOpen, setConnectDialogOpen] = useState(false);
   const [manageDocsOpen, setManageDocsOpen] = useState(false);
   const [coverLetterDialogOpen, setCoverLetterDialogOpen] = useState(false);
-  const [optimizeCvDialogOpen, setOptimizeCvDialogOpen] = useState(false);
+  const [buildCvDialogOpen, setBuildCvDialogOpen] = useState(false);
   const [docsError, setDocsError] = useState(null);
 
   const documentSlots = [
@@ -463,10 +463,18 @@ function JobDetail() {
   const coverLetterHint = !description
     ? 'Add a job description to enable this.'
     : !connectedCv
-      ? 'Connect a CV to enable this.'
+      ? 'Connect a CV to enable the cover letter suggestion.'
       : !canGenerateCoverLetter
-        ? 'Connect a PDF CV to enable this.'
+        ? 'Connect a PDF CV to enable the cover letter suggestion.'
         : null;
+
+  // Building a CV no longer reorders a connected document — it assembles
+  // one fresh from the stored component library — so it only needs a
+  // description to target, not a connected CV.
+  const canBuildCv = !!description;
+  const buildCvHint = !description
+    ? 'Add a job description to enable this.'
+    : null;
 
   return (
     <div className="job-detail-page">
@@ -847,13 +855,16 @@ function JobDetail() {
                 <button
                   type="button"
                   className="button-secondary"
-                  disabled={!canGenerateCoverLetter}
-                  onClick={() => setOptimizeCvDialogOpen(true)}
+                  disabled={!canBuildCv}
+                  onClick={() => setBuildCvDialogOpen(true)}
                 >
-                  Optimize {cvWord}
+                  Build {cvWord}
                 </button>
                 {coverLetterHint && (
                   <p className="field-hint">{coverLetterHint}</p>
+                )}
+                {buildCvHint && buildCvHint !== coverLetterHint && (
+                  <p className="field-hint">{buildCvHint}</p>
                 )}
               </>
             )}
@@ -969,15 +980,15 @@ function JobDetail() {
         }}
       />
 
-      <OptimizeCvDialog
-        open={optimizeCvDialogOpen}
-        onClose={() => setOptimizeCvDialogOpen(false)}
+      <BuildCvDialog
+        open={buildCvDialogOpen}
+        onClose={() => setBuildCvDialogOpen(false)}
         jobId={id}
         employer={employer}
         cvWord={cvWord}
         onSave={(doc) => {
           handleConnectDocument(doc, 'cv');
-          setOptimizeCvDialogOpen(false);
+          setBuildCvDialogOpen(false);
         }}
       />
 

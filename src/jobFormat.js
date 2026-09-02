@@ -142,10 +142,34 @@ export function formatLocation(job) {
   return `${typeLabel} — ${job.location}`;
 }
 
-const MONTH_ABBR = [
+export const MONTH_ABBR = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ];
+
+// For CV experience/education entries — year is required, month optional,
+// end may be absent entirely (is_current) rather than a real date.
+export function formatCvDateRange({
+  start_year,
+  start_month,
+  end_year,
+  end_month,
+  is_current,
+}) {
+  const start = start_month
+    ? `${MONTH_ABBR[start_month - 1]} ${start_year}`
+    : `${start_year}`;
+
+  if (is_current) return `${start} - Present`;
+
+  const end = end_month
+    ? `${MONTH_ABBR[end_month - 1]} ${end_year}`
+    : end_year
+      ? `${end_year}`
+      : 'Present';
+
+  return `${start} - ${end}`;
+}
 
 function formatTime12Hour(hh, mm) {
   const hourNum = Number(hh);

@@ -12,6 +12,7 @@ import Settings from './pages/Settings';
 import AddJob from './pages/AddJob';
 import ManageJobs from './pages/ManageJobs';
 import JobDetail from './pages/JobDetail';
+import CvComponents from './pages/CvComponents';
 import Inbox from './pages/Inbox';
 import InboxCallback from './pages/InboxCallback';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -93,6 +94,7 @@ function App() {
           <Route path="/main" element={<Home />} />
           <Route path="/profile" element={<EditProfile />} />
           <Route path="/documents/:category" element={<Documents />} />
+          <Route path="/cv-components" element={<CvComponents />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/jobs" element={<ManageJobs />} />
           <Route path="/jobs/closed" element={<ManageJobs closed />} />

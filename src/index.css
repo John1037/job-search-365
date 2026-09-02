@@ -2099,3 +2099,301 @@ body {
   opacity: 0.8;
   cursor: default;
 }
+
+/* CV component library (Manage CV components + Experience/Education
+   dialogs) */
+
+.cv-entry-dialog {
+  max-width: 560px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.bullet-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.bullet-editor-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.bullet-editor-row textarea {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bullet-editor-row-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.bullet-editor-row-actions button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.cv-skill-add-form {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.cv-skill-add-form input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 15px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.skill-chip-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.skill-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 12px;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.skill-chip button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.skill-chip button:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.cv-components-intro {
+  margin-bottom: 24px;
+}
+
+.cv-component-section {
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.cv-component-section h2 {
+  margin-top: 0;
+}
+
+.cv-summary-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 15px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+}
+
+.cv-section-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.build-cv-roles-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.build-cv-roles-field input[type='number'] {
+  width: 60px;
+}
+
+.build-cv-dialog {
+  max-width: 640px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.cv-review {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cv-review-section {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.cv-review-section:last-child {
+  border-bottom: none;
+}
+
+.cv-review-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.cv-review-section-header h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.cv-review-entry {
+  margin: 8px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.cv-review-entry-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.cv-review-entry-header .item-name-primary {
+  flex: 1 1 auto;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* Bare textareas directly in a review section/entry (profile paragraph,
+   earlier-career summary, custom section intro/content) — not the ones
+   inside a .bullet-editor-row, which size via flex instead. */
+.cv-review-section > textarea,
+.cv-review-entry > textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-size: 15px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+}
+
+.cv-review-section > label {
+  font-size: 13px;
+  opacity: 0.8;
+  margin-top: 10px;
+  display: block;
+}
+
+/* Compact bullet-editor variant (skills): buttons run horizontally
+   instead of stacking vertically, since a one-line item doesn't need the
+   vertical room a stacked button column takes — the textarea narrows
+   automatically (flex) to make room for them. */
+.bullet-editor-compact .bullet-editor-row {
+  align-items: center;
+}
+
+.bullet-editor-compact .bullet-editor-row-actions {
+  flex-direction: row;
+}
+
+.cv-template-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 8px 0 16px;
+}
+
+.cv-template-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 112px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.cv-template-option span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cv-template-option-selected {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.cv-template-thumb {
+  width: 92px;
+  height: auto;
+  border-radius: 4px;
+}
+
+.cv-palette-options {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0 16px;
+}
+
+.cv-palette-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cv-palette-swatch-selected {
+  border-color: var(--text);
+}
+
+.cv-preview-frame {
+  width: 100%;
+  height: 420px;
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}

@@ -34,13 +34,14 @@ Live at [jobsearch365.com](https://jobsearch365.com).
   you confirm it, opening the same event dialog used everywhere else,
   pre-filled with the suggested event and date. Scanning is manual
   ("Scan now") for now; nothing runs automatically in the background yet.
-- **AI CV optimization** — reorders a connected PDF CV's own content
-  (skills, experience bullets, categorized tool lists) by relevance to a
-  specific job's description — never adding, removing, or rewording
-  anything, only resequencing. Detects the CV's actual section and
-  sub-section structure directly from the PDF (font size, bold weight,
-  bullet vs. wrapped-continuation lines) and reproduces that structure,
-  including page breaks, in the optimized output.
+- **AI CV building** — maintain a reusable library of CV components
+  (profile summary, skills, work history with achievement bullets,
+  education, custom sections) on the "Manage CV components" page, then
+  build a CV tailored to a specific job: the LLM selects and orders only
+  what's relevant from the library (it's never asked to invent or reword
+  a stored skill/bullet — only to choose ids), while freshly drafting a
+  tailored profile paragraph and one-line summaries for older, compacted
+  roles. Editable before saving as both `.txt` and `.pdf`.
 - **Full job detail editing** — title, employer, salary (min/max, currency,
   type, and basis — flat/estimated/OTE), employment type and duration,
   location type and location, job posting URL, contact person, application
@@ -72,11 +73,11 @@ Live at [jobsearch365.com](https://jobsearch365.com).
 - **Backend:** [Supabase](https://supabase.com) — Postgres (RLS-scoped to
   `auth.uid()` on every table), Auth, Storage (avatars, documents), and
   Edge Functions (Deno) for account deletion, email-change notifications,
-  and three LLM-backed features (job import, cover letter drafting, CV
-  optimization).
+  and several LLM-backed features (job import, cover letter drafting, CV
+  building, email-to-job matching).
 - **AI:** [DeepSeek](https://www.deepseek.com) for job-listing extraction,
-  cover letter drafting, CV content reordering, and email-to-job matching
-  (many small, targeted calls per operation rather than one large one, run
+  cover letter drafting, CV building, and email-to-job matching (many
+  small, targeted calls per operation rather than one large one, run
   concurrently under a shared limiter). PDF text/layout extraction via
   [`unpdf`](https://github.com/unjs/unpdf); PDF generation via
   [`jsPDF`](https://github.com/parallax/jsPDF).
@@ -93,19 +94,20 @@ Live at [jobsearch365.com](https://jobsearch365.com).
 ```
 src/
   pages/         Route-level pages (Home, ManageJobs, JobDetail, AddJob,
-                  Documents, Settings, EditProfile, Landing, Signup, ...)
+                  Documents, CvComponents, Settings, EditProfile, Landing,
+                  Signup, ...)
   components/     Reusable UI: dialogs (Add event, Filter, Sort, Connect
                   document, Add job / import from URL, Suggest cover
-                  letter, Optimize CV, ...), JobCard, LoadingBar, form
-                  fields, layout chrome
+                  letter, Build CV, Experience/Education/Custom section,
+                  ...), JobCard, LoadingBar, form fields, layout chrome
   jobFormat.js    Shared job formatting/constants (labels, column list,
-                  event-progression rules)
+                  event-progression rules, CV date-range formatting)
   jobFilters.js   Filter option derivation + predicate logic
   jobSort.js      Multi-level sort logic
   supabaseClient.js
 supabase/
   functions/      Edge Functions — delete-account, notify-email-changed,
-                  import-job-listing, generate-cover-letter, optimize-cv,
+                  import-job-listing, generate-cover-letter, build-cv,
                   gmail-oauth-callback, scan-gmail-inbox
   config.toml     Local Supabase CLI config
 ```
@@ -129,7 +131,7 @@ Environment variables (see `.env.example`):
 | `VITE_GOOGLE_CLIENT_ID`    | Google OAuth 2.0 Client ID (Gmail inbox scanning) |
 
 The AI-backed Edge Functions (`import-job-listing`, `generate-cover-letter`,
-`optimize-cv`, `scan-gmail-inbox`) need a `DEEPSEEK_API_KEY` — this is a
+`build-cv`, `scan-gmail-inbox`) need a `DEEPSEEK_API_KEY` — this is a
 **Supabase Edge Function secret**, not a Vite/frontend env var, so it never
 goes in `.env`. Set it with `supabase secrets set DEEPSEEK_API_KEY=...` for
 a deployed project, or in a local, gitignored `supabase/.env` for `supabase

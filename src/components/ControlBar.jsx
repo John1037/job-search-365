@@ -27,6 +27,8 @@ function ControlBar({ avatarUrl, country }) {
   }
 
   const cvLabel = country === 'US' ? 'Manage Resumes' : 'Manage CVs';
+  const cvComponentsLabel =
+    country === 'US' ? 'Manage resume components' : 'Manage CV components';
   const documentsItems = [
     { label: cvLabel, onClick: () => navigate('/documents/cv') },
     {
@@ -41,6 +43,7 @@ function ControlBar({ avatarUrl, country }) {
       label: 'Manage other documents',
       onClick: () => navigate('/documents/other'),
     },
+    { label: cvComponentsLabel, onClick: () => navigate('/cv-components') },
   ];
 
   const jobsItems = [
