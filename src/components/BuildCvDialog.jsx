@@ -117,6 +117,76 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
     setCv((c) => ({ ...c, sections: c.sections.filter((_, i) => i !== sectionIndex) }));
   }
 
+  // Education entries are grouped three deep — level, then establishment+
+  // year sub-subsection, then the individual qualification — rather than a
+  // flat entries array. These mirror updateEntry/removeEntry above but
+  // address a qualification within its group/subgroup. Removing the last
+  // qualification in a subgroup drops the subgroup, and the last subgroup
+  // in a group drops the group too.
+  function updateEducationQualification(sectionIndex, groupIndex, subgroupIndex, qualIndex, patch) {
+    setCv((c) => ({
+      ...c,
+      sections: c.sections.map((s, i) =>
+        i === sectionIndex
+          ? {
+              ...s,
+              groups: s.groups.map((g, j) =>
+                j === groupIndex
+                  ? {
+                      ...g,
+                      subgroups: g.subgroups.map((sg, k) =>
+                        k === subgroupIndex
+                          ? {
+                              ...sg,
+                              qualifications: sg.qualifications.map((q, l) =>
+                                l === qualIndex ? { ...q, ...patch } : q,
+                              ),
+                            }
+                          : sg,
+                      ),
+                    }
+                  : g,
+              ),
+            }
+          : s,
+      ),
+    }));
+  }
+
+  function removeEducationQualification(sectionIndex, groupIndex, subgroupIndex, qualIndex) {
+    setCv((c) => ({
+      ...c,
+      sections: c.sections.map((s, i) =>
+        i === sectionIndex
+          ? {
+              ...s,
+              groups: s.groups
+                .map((g, j) =>
+                  j === groupIndex
+                    ? {
+                        ...g,
+                        subgroups: g.subgroups
+                          .map((sg, k) =>
+                            k === subgroupIndex
+                              ? {
+                                  ...sg,
+                                  qualifications: sg.qualifications.filter(
+                                    (_, l) => l !== qualIndex,
+                                  ),
+                                }
+                              : sg,
+                          )
+                          .filter((sg) => sg.qualifications.length > 0),
+                      }
+                    : g,
+                )
+                .filter((g) => g.subgroups.length > 0),
+            }
+          : s,
+      ),
+    }));
+  }
+
   async function getPhotoDataUrl() {
     if (!includePhoto || !cv?.avatar_url || !template.supportsPhoto) return null;
     try {
@@ -242,7 +312,27 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
         role="dialog"
         aria-modal="true"
       >
-        <h2>Build {cvWord}</h2>
+        <div className="build-cv-dialog-header">
+          <h2>Build {cvWord}</h2>
+          {stage === 'template' && cv && (
+            <div className="cv-palette-options">
+              {template.palettes.map((p, i) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  className={
+                    'cv-palette-swatch' +
+                    (paletteIndex === i ? ' cv-palette-swatch-selected' : '')
+                  }
+                  style={{ backgroundColor: p.accent }}
+                  title={p.name}
+                  aria-label={p.name}
+                  onClick={() => setPaletteIndex(i)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
         {stage === 'configure' && (
           <>
@@ -381,6 +471,44 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
                   ))}
 
                 {section.type === 'education' &&
+                  section.groups.map((group, gIndex) => (
+                    <div key={group.id} className="cv-review-group">
+                      {group.subgroups.map((subgroup, sgIndex) => (
+                        <div key={subgroup.id} className="cv-review-subgroup">
+                          <div className="cv-review-subgroup-header">{subgroup.header}</div>
+                          {subgroup.qualifications.map((qual, qIndex) => (
+                            <div key={qual.id} className="cv-review-entry">
+                              <div className="cv-review-entry-header">
+                                <span className="item-name-primary">
+                                  {qual.detail || '(no subject/grade)'}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="button-outline item-delete"
+                                  onClick={() =>
+                                    removeEducationQualification(sIndex, gIndex, sgIndex, qIndex)
+                                  }
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              <BulletListEditor
+                                items={toEditableList(qual.items)}
+                                onChange={(items) =>
+                                  updateEducationQualification(sIndex, gIndex, sgIndex, qIndex, {
+                                    items: fromEditableList(items),
+                                  })
+                                }
+                                addLabel="Add detail"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                {section.type === 'certification' &&
                   section.entries.map((entry, eIndex) => (
                     <div key={entry.id} className="cv-review-entry">
                       <div className="cv-review-entry-header">
@@ -435,7 +563,19 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
 
         {stage === 'template' && cv && (
           <>
-            <label>Template</label>
+            <div className="cv-template-header-row">
+              <label>Template</label>
+              {template.supportsPhoto && cv.avatar_url && (
+                <label className="filter-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={includePhoto}
+                    onChange={(e) => setIncludePhoto(e.target.checked)}
+                  />
+                  Include profile photo
+                </label>
+              )}
+            </div>
             <div className="cv-template-options">
               {CV_TEMPLATES.map((t) => (
                 <button
@@ -455,35 +595,6 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
                 </button>
               ))}
             </div>
-
-            <label>Color</label>
-            <div className="cv-palette-options">
-              {template.palettes.map((p, i) => (
-                <button
-                  key={p.name}
-                  type="button"
-                  className={
-                    'cv-palette-swatch' +
-                    (paletteIndex === i ? ' cv-palette-swatch-selected' : '')
-                  }
-                  style={{ backgroundColor: p.accent }}
-                  title={p.name}
-                  aria-label={p.name}
-                  onClick={() => setPaletteIndex(i)}
-                />
-              ))}
-            </div>
-
-            {template.supportsPhoto && cv.avatar_url && (
-              <label className="filter-checkbox">
-                <input
-                  type="checkbox"
-                  checked={includePhoto}
-                  onChange={(e) => setIncludePhoto(e.target.checked)}
-                />
-                Include profile photo
-              </label>
-            )}
 
             <div className="confirm-dialog-actions">
               <button

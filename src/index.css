@@ -502,6 +502,8 @@ body {
 
 .form-row-pair .form-field {
   flex: 1 1 120px;
+  display: flex;
+  flex-direction: column;
 }
 
 .profile-form input:disabled {
@@ -2250,6 +2252,24 @@ body {
   overflow-y: auto;
 }
 
+.build-cv-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.build-cv-dialog-header h2 {
+  margin: 0;
+}
+
+.cv-template-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .cv-review {
   display: flex;
   flex-direction: column;
@@ -2275,6 +2295,27 @@ body {
 .cv-review-section-header h3 {
   margin: 0;
   font-size: 14px;
+}
+
+.cv-review-group {
+  margin-top: 14px;
+}
+
+.cv-review-group:first-child {
+  margin-top: 0;
+}
+
+.cv-review-subgroup {
+  margin-top: 8px;
+}
+
+.cv-review-group > .cv-review-subgroup:first-child {
+  margin-top: 0;
+}
+
+.cv-review-subgroup-header {
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .cv-review-entry {
@@ -2336,9 +2377,11 @@ body {
 
 .cv-template-options {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: 12px;
   margin: 8px 0 16px;
+  padding-bottom: 4px;
 }
 
 .cv-template-option {
@@ -2347,6 +2390,7 @@ body {
   align-items: center;
   gap: 8px;
   width: 112px;
+  flex: 0 0 auto;
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -2374,7 +2418,7 @@ body {
 .cv-palette-options {
   display: flex;
   gap: 10px;
-  margin: 8px 0 16px;
+  flex: 0 0 auto;
 }
 
 .cv-palette-swatch {

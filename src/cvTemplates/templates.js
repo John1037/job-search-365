@@ -26,9 +26,9 @@ export const CV_TEMPLATES = [
     id: 'sidebar',
     name: 'Sidebar',
     description:
-      'Two column — contact, skills and education in a shaded side panel; profile and experience in the main column.',
+      'Two column — contact, skills, education and certifications in a shaded side panel; profile and experience in the main column.',
     layout: 'sidebar-left',
-    sidebarSectionTypes: ['skills', 'education'],
+    sidebarSectionTypes: ['skills', 'education', 'certification'],
     supportsPhoto: true,
     photoShape: 'rounded-square',
     palettes: [
@@ -44,7 +44,7 @@ export const CV_TEMPLATES = [
     description:
       'Same as Sidebar, mirrored — contact, skills and education on the right.',
     layout: 'sidebar-right',
-    sidebarSectionTypes: ['skills', 'education'],
+    sidebarSectionTypes: ['skills', 'education', 'certification'],
     supportsPhoto: true,
     photoShape: 'rounded-square',
     palettes: [
@@ -90,7 +90,7 @@ export const CV_TEMPLATES = [
     name: 'Compact Sidebar',
     description: 'Sidebar layout with tighter spacing — fits more onto fewer pages.',
     layout: 'sidebar-left',
-    sidebarSectionTypes: ['skills', 'education'],
+    sidebarSectionTypes: ['skills', 'education', 'certification'],
     density: 'compact',
     supportsPhoto: true,
     photoShape: 'rounded-square',

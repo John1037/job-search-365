@@ -120,6 +120,7 @@ Deno.serve(async (req) => {
     skillsResult,
     experienceResult,
     educationResult,
+    certificationResult,
     sectionsResult,
   ] = await Promise.all([
     supabaseUser
@@ -137,8 +138,11 @@ Deno.serve(async (req) => {
       ),
     supabaseUser
       .from('cv_education')
+      .select('id, establishment, level, subject, grade, qualification_year'),
+    supabaseUser
+      .from('cv_certifications')
       .select(
-        'id, institution, qualification_title, location, start_year, start_month, end_year, end_month, is_current',
+        'id, issuer, title, location, start_year, start_month, end_year, end_month, is_current',
       ),
     supabaseUser
       .from('cv_custom_sections')
@@ -162,6 +166,10 @@ Deno.serve(async (req) => {
     console.log('[build-cv] education query failed:', educationResult.error);
     return jsonResponse({ error: educationResult.error.message }, 500);
   }
+  if (certificationResult.error) {
+    console.log('[build-cv] certification query failed:', certificationResult.error);
+    return jsonResponse({ error: certificationResult.error.message }, 500);
+  }
   if (sectionsResult.error) {
     console.log('[build-cv] custom sections query failed:', sectionsResult.error);
     return jsonResponse({ error: sectionsResult.error.message }, 500);
@@ -172,13 +180,19 @@ Deno.serve(async (req) => {
   const experience = [...(experienceResult.data ?? [])].sort(
     (a, b) => dateSortKey(b) - dateSortKey(a),
   );
-  const education = educationResult.data ?? [];
+  const education = [...(educationResult.data ?? [])].sort(
+    (a, b) => (b.qualification_year ?? 0) - (a.qualification_year ?? 0),
+  );
+  const certifications = [...(certificationResult.data ?? [])].sort(
+    (a, b) => dateSortKey(b) - dateSortKey(a),
+  );
   const customSections = sectionsResult.data ?? [];
 
   if (
     skills.length === 0 &&
     experience.length === 0 &&
     education.length === 0 &&
+    certifications.length === 0 &&
     customSections.length === 0
   ) {
     return jsonResponse(
@@ -209,9 +223,10 @@ Deno.serve(async (req) => {
 
   const experienceIds = recentExperience.map((e) => e.id);
   const educationIds = education.map((e) => e.id);
+  const certificationIds = certifications.map((c) => c.id);
   const earlierExperienceIds = earlierExperience.map((e) => e.id);
 
-  const [bulletsResult, itemsResult, earlierBulletsResult] = await Promise.all([
+  const [bulletsResult, itemsResult, certItemsResult, earlierBulletsResult] = await Promise.all([
     experienceIds.length > 0
       ? supabaseUser
           .from('cv_experience_bullets')
@@ -224,6 +239,13 @@ Deno.serve(async (req) => {
           .from('cv_education_items')
           .select('id, education_id, detail_text')
           .in('education_id', educationIds)
+          .order('sort_order', { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+    certificationIds.length > 0
+      ? supabaseUser
+          .from('cv_certification_items')
+          .select('id, certification_id, detail_text')
+          .in('certification_id', certificationIds)
           .order('sort_order', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
     earlierExperienceIds.length > 0
@@ -243,6 +265,10 @@ Deno.serve(async (req) => {
     console.log('[build-cv] education items query failed:', itemsResult.error);
     return jsonResponse({ error: itemsResult.error.message }, 500);
   }
+  if (certItemsResult.error) {
+    console.log('[build-cv] certification items query failed:', certItemsResult.error);
+    return jsonResponse({ error: certItemsResult.error.message }, 500);
+  }
   if (earlierBulletsResult.error) {
     console.log('[build-cv] earlier bullets query failed:', earlierBulletsResult.error);
     return jsonResponse({ error: earlierBulletsResult.error.message }, 500);
@@ -260,6 +286,13 @@ Deno.serve(async (req) => {
     const list = itemsByEducation.get(row.education_id) ?? [];
     list.push({ id: row.id, detail_text: row.detail_text });
     itemsByEducation.set(row.education_id, list);
+  }
+
+  const itemsByCertification = new Map<string, { id: string; detail_text: string }[]>();
+  for (const row of certItemsResult.data ?? []) {
+    const list = itemsByCertification.get(row.certification_id) ?? [];
+    list.push({ id: row.id, detail_text: row.detail_text });
+    itemsByCertification.set(row.certification_id, list);
   }
 
   const earlierBulletsByExperience = new Map<string, string[]>();
@@ -351,6 +384,7 @@ Deno.serve(async (req) => {
   const bulletSelectionByExperience = new Map<string, string[]>();
   const summaryByExperience = new Map<string, string>();
   const itemSelectionByEducation = new Map<string, string[]>();
+  const itemSelectionByCertification = new Map<string, string[]>();
 
   const tasks: Promise<void>[] = [];
 
@@ -483,13 +517,39 @@ Deno.serve(async (req) => {
             'for one education entry, choose which are relevant to this job ' +
             'and order them by relevance. Never invent an id. Respond with ' +
             'JSON: {"item_ids": ["..."]}',
-          `${jobContext}\n\nQualification: ${entry.qualification_title} at ` +
-            `${entry.institution}\nDetails:\n${JSON.stringify(items.map((it) => ({ id: it.id, text: it.detail_text })))}`,
+          `${jobContext}\n\nQualification: ${entry.level}` +
+            `${entry.subject ? ` in ${entry.subject}` : ''} at ${entry.establishment}\n` +
+            `Details:\n${JSON.stringify(items.map((it) => ({ id: it.id, text: it.detail_text })))}`,
         );
         const ids = Array.isArray(res?.item_ids) ? res.item_ids : null;
         const validIds = new Set(items.map((it) => it.id));
         const filtered = ids ? ids.filter((id: string) => validIds.has(id)) : [];
         itemSelectionByEducation.set(
+          entry.id,
+          filtered.length > 0 ? filtered : items.map((it) => it.id),
+        );
+      })(),
+    );
+  }
+
+  for (const entry of certifications) {
+    const items = itemsByCertification.get(entry.id) ?? [];
+    if (items.length === 0) continue;
+
+    tasks.push(
+      (async () => {
+        const res = await callDeepSeek(
+          'Given a job and a list of detail lines (id, text) for one ' +
+            'certification, choose which are relevant to this job and order ' +
+            'them by relevance. Never invent an id. Respond with JSON: ' +
+            '{"item_ids": ["..."]}',
+          `${jobContext}\n\nCertification: ${entry.title} from ${entry.issuer}\n` +
+            `Details:\n${JSON.stringify(items.map((it) => ({ id: it.id, text: it.detail_text })))}`,
+        );
+        const ids = Array.isArray(res?.item_ids) ? res.item_ids : null;
+        const validIds = new Set(items.map((it) => it.id));
+        const filtered = ids ? ids.filter((id: string) => validIds.has(id)) : [];
+        itemSelectionByCertification.set(
           entry.id,
           filtered.length > 0 ? filtered : items.map((it) => it.id),
         );
@@ -558,20 +618,102 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Grouped by level (BSc/A-level/GCSE/etc.), then within each level by
+  // establishment+year (multiple qualifications from the same sitting share
+  // one sub-subsection, headed "level, establishment, year" all on one
+  // line) — `education` is already sorted most-recent-first, so grouping by
+  // first-seen level/establishment+year preserves that order at every tier
+  // without a separate sort. `level` still lives on the outer group (used
+  // to decide spacing: no gap within a level, a full gap between levels)
+  // even though it no longer gets its own rendered line.
   if (education.length > 0) {
+    interface EducationSubgroup {
+      id: string;
+      header: string;
+      qualifications: Record<string, unknown>[];
+    }
+    interface EducationLevelGroup {
+      id: string;
+      level: string;
+      subgroupOrder: string[];
+      subgroupsByKey: Map<string, EducationSubgroup>;
+    }
+
+    const levelGroups = new Map<string, EducationLevelGroup>();
+    const levelOrder: string[] = [];
+
+    for (const entry of education) {
+      const available = itemsByEducation.get(entry.id) ?? [];
+      const itemTextById = new Map(available.map((it) => [it.id, it.detail_text]));
+      const qualification = {
+        id: entry.id,
+        detail: [entry.subject, entry.grade].filter(Boolean).join(', '),
+        items: (itemSelectionByEducation.get(entry.id) ?? [])
+          .map((id) => itemTextById.get(id))
+          .filter(Boolean),
+      };
+
+      let levelGroup = levelGroups.get(entry.level);
+      if (!levelGroup) {
+        levelGroup = { id: entry.level, level: entry.level, subgroupOrder: [], subgroupsByKey: new Map() };
+        levelGroups.set(entry.level, levelGroup);
+        levelOrder.push(entry.level);
+      }
+
+      const subgroupKey = `${entry.establishment}|${entry.qualification_year ?? ''}`;
+      let subgroup = levelGroup.subgroupsByKey.get(subgroupKey);
+      if (!subgroup) {
+        subgroup = {
+          id: subgroupKey,
+          header: [
+            entry.level,
+            entry.establishment,
+            entry.qualification_year ? String(entry.qualification_year) : null,
+          ]
+            .filter(Boolean)
+            .join(', '),
+          qualifications: [],
+        };
+        levelGroup.subgroupsByKey.set(subgroupKey, subgroup);
+        levelGroup.subgroupOrder.push(subgroupKey);
+      }
+      subgroup.qualifications.push(qualification);
+    }
+
+    const groups: Record<string, unknown>[] = [];
+    for (const level of levelOrder) {
+      const levelGroup = levelGroups.get(level);
+      if (!levelGroup) continue;
+      const subgroups: EducationSubgroup[] = [];
+      for (const key of levelGroup.subgroupOrder) {
+        const subgroup = levelGroup.subgroupsByKey.get(key);
+        if (subgroup) subgroups.push(subgroup);
+      }
+      groups.push({ id: levelGroup.id, level: levelGroup.level, subgroups });
+    }
+
     sections.push({
       id: 'education',
       type: 'education',
       heading: 'Education',
-      entries: education.map((entry) => {
-        const available = itemsByEducation.get(entry.id) ?? [];
+      groups,
+    });
+  }
+
+  if (certifications.length > 0) {
+    sections.push({
+      id: 'certifications',
+      type: 'certification',
+      heading: 'Certifications',
+      entries: certifications.map((entry) => {
+        const available = itemsByCertification.get(entry.id) ?? [];
         const itemTextById = new Map(available.map((it) => [it.id, it.detail_text]));
         return {
           id: entry.id,
-          title: entry.qualification_title,
-          institution: entry.institution,
+          title: entry.title,
+          institution: entry.issuer,
           date_range: entry.start_year ? formatDateRange(entry) : null,
-          items: (itemSelectionByEducation.get(entry.id) ?? [])
+          items: (itemSelectionByCertification.get(entry.id) ?? [])
             .map((id) => itemTextById.get(id))
             .filter(Boolean),
         };

@@ -74,10 +74,14 @@ function computeZones(template, pageWidth) {
 export function hasSectionContent(section) {
   if (section.type === 'profile') return !!section.text?.trim();
   if (section.type === 'skills') return (section.items?.length ?? 0) > 0;
-  if (section.type === 'experience' || section.type === 'education') {
+  if (section.type === 'education') return (section.groups?.length ?? 0) > 0;
+  if (
+    section.type === 'experience' ||
+    section.type === 'certification' ||
+    section.type === 'earlier_experience'
+  ) {
     return (section.entries?.length ?? 0) > 0;
   }
-  if (section.type === 'earlier_experience') return (section.entries?.length ?? 0) > 0;
   if (section.type === 'custom') return !!section.content?.trim();
   return true;
 }
@@ -125,6 +129,16 @@ export function cvToPlainText(cv) {
         lines.push(`• ${entry.employer} - ${entry.title}: ${entry.summary}`);
       }
     } else if (section.type === 'education') {
+      for (const group of section.groups) {
+        for (const subgroup of group.subgroups) {
+          lines.push(subgroup.header);
+          for (const qual of subgroup.qualifications) {
+            if (qual.detail) lines.push(qual.detail);
+            for (const item of qual.items) lines.push(`• ${item}`);
+          }
+        }
+      }
+    } else if (section.type === 'certification') {
       for (const entry of section.entries) {
         lines.push(
           entry.date_range
@@ -207,14 +221,161 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl) {
     ? contentSections.filter((s) => !sidebarTypes.has(s.type))
     : contentSections;
 
+  const photoSize = 64;
+  const photoInSidebar = !!(photoDataUrl && template.supportsPhoto && hasSidebar);
+
+  function drawSidebarBand(pageNum) {
+    const topY = pageNum === 1 ? headerBandHeight : 0;
+    doc.setFillColor(...sidebarBgRgb);
+    doc.rect(zones.sidebar.rectX, topY, zones.sidebar.rectWidth, pageHeight - topY, 'F');
+  }
+
+  // The sidebar is rendered as its own paginated flow, independent of the
+  // main column's page breaks — a long skills/education/certification list
+  // can run onto page 2+ instead of being clipped to page 1. Run once as a
+  // dry pass (draw=false) purely to count how many pages the sidebar needs
+  // BEFORE main content is laid out, so breakPage() below can decide per
+  // page whether the main column should stay narrow (still within the
+  // sidebar's range) or go full-width (past it). Run again for real
+  // (draw=true) AFTER the main column is fully drawn, reusing whichever
+  // pages main already created via doc.setPage() and only appending new
+  // ones (doc.addPage()) if the sidebar outlasts the main column — doing
+  // this the other way around would have the sidebar pass create pages
+  // that main's own breakPage() would then duplicate instead of reusing.
+  function runSidebarPass(draw) {
+    let page = 1;
+    let y = photoInSidebar ? contentTop + photoSize + 16 : contentTop;
+
+    if (draw) doc.setPage(1);
+
+    function ensureRoom(height) {
+      if (y + height > pageHeight - PAGE_MARGIN) {
+        page += 1;
+        y = CONTENT_TOP;
+        if (draw) {
+          if (page > doc.getNumberOfPages()) doc.addPage();
+          doc.setPage(page);
+          drawSidebarBand(page);
+        }
+      }
+    }
+
+    // Sidebar heading color: the same accent used for main-column headings
+    // (not the sidebar's body-text color) — requested explicitly so heading
+    // color reads consistently across the whole page, not just the main
+    // column.
+    function heading(text) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(STYLE.sidebarHeading.size);
+      const lines = doc.splitTextToSize(text.toUpperCase(), zones.sidebar.width);
+      const blockHeight = lines.length * STYLE.sidebarHeading.lineHeight;
+      ensureRoom(blockHeight);
+      if (draw) {
+        doc.setTextColor(...accentRgb);
+        let ty = y;
+        for (const line of lines) {
+          doc.text(line, zones.sidebar.x, ty);
+          ty += STYLE.sidebarHeading.lineHeight;
+        }
+      }
+      y += blockHeight + 2 * scale;
+    }
+
+    function bodyLine(text, color) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(STYLE.sidebarBody.size);
+      const lines = doc.splitTextToSize(text, zones.sidebar.width);
+      for (const line of lines) {
+        ensureRoom(STYLE.sidebarBody.lineHeight);
+        if (draw) {
+          doc.setTextColor(...color);
+          doc.text(line, zones.sidebar.x, y);
+        }
+        y += STYLE.sidebarBody.lineHeight;
+      }
+    }
+
+    // Like bodyLine, but bold — for a label that reads as part of the body
+    // text (e.g. education's qualification-level grouping) rather than a
+    // section heading, so it keeps the body's case and color instead of
+    // heading()'s uppercased, accent-colored treatment.
+    function boldLine(text, color) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(STYLE.sidebarBody.size);
+      const lines = doc.splitTextToSize(text, zones.sidebar.width);
+      for (const line of lines) {
+        ensureRoom(STYLE.sidebarBody.lineHeight);
+        if (draw) {
+          doc.setTextColor(...color);
+          doc.text(line, zones.sidebar.x, y);
+        }
+        y += STYLE.sidebarBody.lineHeight;
+      }
+    }
+
+    const bodyColor = palette.sidebarText ? hexToRgb(palette.sidebarText) : textRgb;
+
+    // Contact details live in the sidebar for this layout, not the main
+    // header. Header-band templates don't currently combine with a
+    // sidebar, but if one did, contact would already be in the band instead.
+    if (headerBandHeight === 0) {
+      const fields = [
+        cv.contact?.location,
+        cv.contact?.phone,
+        cv.contact?.email,
+        cv.contact?.linkedin_url,
+        cv.contact?.github_url,
+      ].filter(Boolean);
+      if (fields.length > 0) {
+        y += 4 * scale;
+        heading('Contact');
+        for (const field of fields) bodyLine(field, bodyColor);
+        y += 8 * scale;
+      }
+    }
+
+    for (const section of sidebarSections) {
+      y += 4 * scale;
+      heading(section.heading);
+      if (section.type === 'skills') {
+        for (const item of section.items) bodyLine(item, bodyColor);
+      } else if (section.type === 'education') {
+        for (const group of section.groups) {
+          for (const subgroup of group.subgroups) {
+            boldLine(subgroup.header, bodyColor);
+            for (const qual of subgroup.qualifications) {
+              if (qual.detail) bodyLine(qual.detail, bodyColor);
+            }
+          }
+          y += 4 * scale;
+        }
+      } else if (section.type === 'certification') {
+        for (const entry of section.entries) {
+          const entryHeading = entry.date_range
+            ? `${entry.title}, ${entry.institution} (${entry.date_range})`
+            : `${entry.title}, ${entry.institution}`;
+          bodyLine(entryHeading, bodyColor);
+          y += 4 * scale;
+        }
+      }
+      y += 8 * scale;
+    }
+
+    return page;
+  }
+
+  const sidebarPageCount = hasSidebar ? runSidebarPass(false) : 0;
+
   let mainY = contentTop;
+  let currentPageNum = 1;
 
   function breakPage() {
     doc.addPage();
+    currentPageNum += 1;
     mainY = CONTENT_TOP;
-    // Sidebar/header band are only drawn on page 1 — later pages use the
-    // full width and the normal (unbanded) top margin.
-    mainZone = zones.fullWidthMain;
+    // Stay in the narrow main column while the sidebar is still running
+    // down this page range; once past it, use the full page width.
+    mainZone = currentPageNum <= sidebarPageCount ? zones.main : zones.fullWidthMain;
   }
 
   // Per-line safety net used while actually drawing — only fires if a
@@ -387,7 +548,61 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl) {
     }
   }
 
-  function measureEducationEntryHeight(entry) {
+  // Education is grouped two deep: an establishment+year sub-subsection —
+  // headed by one line combining level, establishment and year (bold,
+  // subheading weight) — then a plain subject/grade detail line per
+  // qualification from that sitting, with its bulleted notes beneath.
+  // Sub-subsections are drawn back-to-back with no extra gap within the
+  // same level; ENTRY_GAP only applies between different levels (the outer
+  // `group`, kept in the data purely to drive that spacing), handled by
+  // the caller.
+  function measureEducationQualificationHeight(qual) {
+    let h = qual.detail ? measureWrappedHeight(qual.detail, STYLE.meta) : 0;
+    for (const item of qual.items) {
+      const { label, rest } = splitBoldLabel(item);
+      h += measureBulletHeight(label, rest, STYLE.bullet);
+    }
+    return h;
+  }
+
+  function drawEducationQualification(qual) {
+    if (qual.detail) drawWrapped(qual.detail, STYLE.meta);
+    for (const item of qual.items) {
+      const { label, rest } = splitBoldLabel(item);
+      drawBulletLine(label, rest, STYLE.bullet);
+    }
+  }
+
+  function measureEducationSubgroupHeight(subgroup) {
+    let h = measureWrappedHeight(subgroup.header, STYLE.subHeading);
+    for (const qual of subgroup.qualifications) {
+      h += measureEducationQualificationHeight(qual);
+    }
+    return h;
+  }
+
+  function drawEducationSubgroup(subgroup) {
+    drawWrapped(subgroup.header, STYLE.subHeading);
+    for (const qual of subgroup.qualifications) {
+      drawEducationQualification(qual);
+    }
+  }
+
+  function measureEducationGroupHeight(group) {
+    let h = 0;
+    for (const subgroup of group.subgroups) {
+      h += measureEducationSubgroupHeight(subgroup);
+    }
+    return h;
+  }
+
+  function drawEducationGroup(group) {
+    for (const subgroup of group.subgroups) {
+      drawEducationSubgroup(subgroup);
+    }
+  }
+
+  function measureCertificationEntryHeight(entry) {
     const heading = entry.date_range
       ? `${entry.title} — ${entry.institution} | ${entry.date_range}`
       : `${entry.title} — ${entry.institution}`;
@@ -399,7 +614,7 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl) {
     return h;
   }
 
-  function drawEducationEntry(entry) {
+  function drawCertificationEntry(entry) {
     const heading = entry.date_range
       ? `${entry.title} — ${entry.institution} | ${entry.date_range}`
       : `${entry.title} — ${entry.institution}`;
@@ -466,8 +681,21 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl) {
         drawBulletLine(label, rest, STYLE.bullet);
       });
     } else if (section.type === 'education') {
+      section.groups.forEach((group, i) => {
+        const groupHeight = measureEducationGroupHeight(group);
+        if (i === 0) {
+          ensureAtomicRoom(SECTION_GAP + measureSectionHeadingHeight(section.heading) + groupHeight);
+          mainY += SECTION_GAP;
+          drawSectionHeading(section.heading);
+        } else {
+          ensureAtomicRoom(ENTRY_GAP + groupHeight);
+          mainY += ENTRY_GAP;
+        }
+        drawEducationGroup(group);
+      });
+    } else if (section.type === 'certification') {
       section.entries.forEach((entry, i) => {
-        const entryHeight = measureEducationEntryHeight(entry);
+        const entryHeight = measureCertificationEntryHeight(entry);
         if (i === 0) {
           ensureAtomicRoom(SECTION_GAP + measureSectionHeadingHeight(section.heading) + entryHeight);
           mainY += SECTION_GAP;
@@ -476,7 +704,7 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl) {
           ensureAtomicRoom(ENTRY_GAP + entryHeight);
           mainY += ENTRY_GAP;
         }
-        drawEducationEntry(entry);
+        drawCertificationEntry(entry);
       });
     } else if (section.type === 'custom') {
       let bodyHeight = 0;
@@ -510,85 +738,6 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl) {
     }
   }
 
-  // Sidebar heading color: the same accent used for main-column headings
-  // (not the sidebar's body-text color) — requested explicitly so heading
-  // color reads consistently across the whole page, not just the main
-  // column.
-  function drawSidebarHeading(heading, zone, y) {
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(STYLE.sidebarHeading.size);
-    doc.setTextColor(...accentRgb);
-    const headingLines = doc.splitTextToSize(heading.toUpperCase(), zone.width);
-    for (const line of headingLines) {
-      doc.text(line, zone.x, y);
-      y += STYLE.sidebarHeading.lineHeight;
-    }
-    return y + 2 * scale;
-  }
-
-  function renderSidebarContact(zone, y) {
-    const fields = [
-      cv.contact?.location,
-      cv.contact?.phone,
-      cv.contact?.email,
-      cv.contact?.linkedin_url,
-      cv.contact?.github_url,
-    ].filter(Boolean);
-    if (fields.length === 0) return y;
-
-    y += 4 * scale;
-    y = drawSidebarHeading('Contact', zone, y);
-
-    const bodyColor = palette.sidebarText ? hexToRgb(palette.sidebarText) : textRgb;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(STYLE.sidebarBody.size);
-    for (const field of fields) {
-      const lines = doc.splitTextToSize(field, zone.width);
-      for (const line of lines) {
-        doc.setTextColor(...bodyColor);
-        doc.text(line, zone.x, y);
-        y += STYLE.sidebarBody.lineHeight;
-      }
-    }
-
-    return y + 8 * scale;
-  }
-
-  function renderSidebarSection(section, zone, y) {
-    y += 4 * scale;
-    y = drawSidebarHeading(section.heading, zone, y);
-
-    const bodyColor = palette.sidebarText ? hexToRgb(palette.sidebarText) : textRgb;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(STYLE.sidebarBody.size);
-
-    if (section.type === 'skills') {
-      for (const item of section.items) {
-        const lines = doc.splitTextToSize(item, zone.width);
-        for (const line of lines) {
-          doc.setTextColor(...bodyColor);
-          doc.text(line, zone.x, y);
-          y += STYLE.sidebarBody.lineHeight;
-        }
-      }
-    } else if (section.type === 'education') {
-      for (const entry of section.entries) {
-        const heading = entry.date_range
-          ? `${entry.title}, ${entry.institution} (${entry.date_range})`
-          : `${entry.title}, ${entry.institution}`;
-        const lines = doc.splitTextToSize(heading, zone.width);
-        for (const line of lines) {
-          doc.setTextColor(...bodyColor);
-          doc.text(line, zone.x, y);
-          y += STYLE.sidebarBody.lineHeight;
-        }
-        y += 4 * scale;
-      }
-    }
-
-    return y + 8 * scale;
-  }
-
   // Header band, page 1 only, drawn before the sidebar band so the
   // sidebar can start below it rather than overlapping.
   if (headerBandHeight > 0) {
@@ -614,21 +763,16 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl) {
     }
   }
 
-  // Sidebar background band, page 1 only — starts below the header band
-  // if one is present, rather than overlapping it.
+  // Sidebar background band, page 1 — starts below the header band if one
+  // is present, rather than overlapping it. Later sidebar pages (if the
+  // sidebar content runs past page 1) get their own band drawn by
+  // drawSidebarBand() inside runSidebarPass()'s real draw pass below.
   if (hasSidebar) {
-    doc.setFillColor(...sidebarBgRgb);
-    doc.rect(
-      zones.sidebar.rectX,
-      headerBandHeight,
-      zones.sidebar.rectWidth,
-      pageHeight - headerBandHeight,
-      'F',
-    );
+    drawSidebarBand(1);
   }
 
-  // Photo, optional.
-  const photoSize = 64;
+  // Photo, optional — page 1 only, drawn after the band so it isn't
+  // painted over.
   let photoZoneX = null;
   let photoZoneY = null;
 
@@ -649,21 +793,6 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl) {
     }
   }
 
-  let sidebarY = photoZoneX !== null && hasSidebar ? contentTop + photoSize + 16 : contentTop;
-
-  if (hasSidebar) {
-    // Contact details live in the sidebar for this layout, not the main
-    // header — drawn first, above Skills/Education. (Header-band
-    // templates don't currently combine with a sidebar, but if one did,
-    // contact would already have been drawn in the band instead.)
-    if (headerBandHeight === 0) {
-      sidebarY = renderSidebarContact(zones.sidebar, sidebarY);
-    }
-    for (const section of sidebarSections) {
-      sidebarY = renderSidebarSection(section, zones.sidebar, sidebarY);
-    }
-  }
-
   if (headerBandHeight === 0) {
     const nameHeaderWidth =
       !hasSidebar && photoZoneX !== null ? mainZone.width - photoSize - 16 : mainZone.width;
@@ -674,7 +803,7 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl) {
 
     // Non-sidebar templates keep contact details in the main header,
     // right under the name; sidebar templates show them in the sidebar
-    // instead (handled above).
+    // instead (drawn below, after the main column).
     if (!hasSidebar && contactLine) {
       drawWrapped(contactLine, { ...STYLE.contact, width: nameHeaderWidth });
     }
@@ -682,6 +811,13 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl) {
 
   for (const section of mainSections) {
     renderMainSection(section);
+  }
+
+  // Sidebar content is drawn last (real pass) so it can reuse whatever
+  // pages the main column already created via setPage(), only appending
+  // new ones past the end if the sidebar outlasts the main content.
+  if (hasSidebar) {
+    runSidebarPass(true);
   }
 
   return doc.output('blob');

@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { formatCvDateRange } from '../jobFormat';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExperienceDialog from '../components/ExperienceDialog';
 import EducationDialog from '../components/EducationDialog';
+import CertificationDialog from '../components/CertificationDialog';
 import CustomSectionDialog from '../components/CustomSectionDialog';
 
 function experienceSortKey(exp) {
@@ -38,38 +39,60 @@ function CvComponents() {
   const [editingEducation, setEditingEducation] = useState(null);
   const [educationDeletePending, setEducationDeletePending] = useState(null);
 
+  const [certifications, setCertifications] = useState([]);
+  const [certificationDialogOpen, setCertificationDialogOpen] = useState(false);
+  const [editingCertification, setEditingCertification] = useState(null);
+  const [certificationDeletePending, setCertificationDeletePending] = useState(null);
+
   const [customSections, setCustomSections] = useState([]);
   const [customSectionDialogOpen, setCustomSectionDialogOpen] = useState(false);
   const [editingCustomSection, setEditingCustomSection] = useState(null);
   const [customSectionDeletePending, setCustomSectionDeletePending] =
     useState(null);
 
-  async function loadAll() {
-    setLoading(true);
+  const experienceSectionRef = useRef(null);
+  const educationSectionRef = useRef(null);
+  const certificationSectionRef = useRef(null);
+  const customSectionSectionRef = useRef(null);
+
+  // `silent` skips the full-page loading state — used when refetching after
+  // a dialog save, so the page doesn't briefly unmount to "Loading…" and
+  // lose the user's scroll position (which otherwise snaps back to the top).
+  async function loadAll({ silent = false } = {}) {
+    if (!silent) setLoading(true);
     setError(null);
 
-    const [profileResult, skillsResult, experienceResult, educationResult, sectionsResult] =
-      await Promise.all([
-        supabase.from('profiles').select('cv_summary').maybeSingle(),
-        supabase
-          .from('cv_skills')
-          .select('id, skill_text')
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('cv_experience')
-          .select(
-            'id, job_title, employer, location, start_year, start_month, end_year, end_month, is_current',
-          ),
-        supabase
-          .from('cv_education')
-          .select(
-            'id, institution, qualification_title, location, start_year, start_month, end_year, end_month, is_current',
-          ),
-        supabase
-          .from('cv_custom_sections')
-          .select('id, heading, content, format, intro_text')
-          .order('sort_order', { ascending: true }),
-      ]);
+    const [
+      profileResult,
+      skillsResult,
+      experienceResult,
+      educationResult,
+      certificationResult,
+      sectionsResult,
+    ] = await Promise.all([
+      supabase.from('profiles').select('cv_summary').maybeSingle(),
+      supabase
+        .from('cv_skills')
+        .select('id, skill_text')
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('cv_experience')
+        .select(
+          'id, job_title, employer, location, start_year, start_month, end_year, end_month, is_current',
+        ),
+      supabase
+        .from('cv_education')
+        .select('id, establishment, level, subject, grade, qualification_year'),
+      supabase
+        .from('cv_certifications')
+        .select(
+          'id, issuer, title, location, start_year, start_month, end_year, end_month, is_current',
+        ),
+      supabase
+        .from('cv_custom_sections')
+        .select('id, heading, content, format, intro_text')
+        .order('sort_order', { ascending: true }),
+    ]);
 
     if (profileResult.error) setError(profileResult.error.message);
     else setCvSummary(profileResult.data?.cv_summary ?? '');
@@ -92,6 +115,16 @@ function CvComponents() {
     } else {
       setEducations(
         [...(educationResult.data ?? [])].sort(
+          (a, b) => (b.qualification_year ?? 0) - (a.qualification_year ?? 0),
+        ),
+      );
+    }
+
+    if (certificationResult.error) {
+      setError(certificationResult.error.message);
+    } else {
+      setCertifications(
+        [...(certificationResult.data ?? [])].sort(
           (a, b) => experienceSortKey(b) - experienceSortKey(a),
         ),
       );
@@ -100,7 +133,7 @@ function CvComponents() {
     if (sectionsResult.error) setError(sectionsResult.error.message);
     else setCustomSections(sectionsResult.data ?? []);
 
-    setLoading(false);
+    if (!silent) setLoading(false);
   }
 
   useEffect(() => {
@@ -219,6 +252,26 @@ function CvComponents() {
     setEducations((edus) => edus.filter((e) => e.id !== edu.id));
   }
 
+  async function handleConfirmDeleteCertification() {
+    const cert = certificationDeletePending;
+    if (!cert) return;
+
+    setError(null);
+    const { error: deleteError } = await supabase
+      .from('cv_certifications')
+      .delete()
+      .eq('id', cert.id);
+
+    setCertificationDeletePending(null);
+
+    if (deleteError) {
+      setError(deleteError.message);
+      return;
+    }
+
+    setCertifications((certs) => certs.filter((c) => c.id !== cert.id));
+  }
+
   async function handleConfirmDeleteCustomSection() {
     const section = customSectionDeletePending;
     if (!section) return;
@@ -254,10 +307,10 @@ function CvComponents() {
       </div>
 
       <p className="field-hint cv-components-intro">
-        Build up a library of skills, experience, education and custom
-        sections here. Building a {cvWord} for a specific job selects and
-        arranges from whatever's relevant — not everything has to be used
-        every time.
+        Build up a library of skills, experience, education, certifications
+        and custom sections here. Building a {cvWord} for a specific job
+        selects and arranges from whatever's relevant — not everything has
+        to be used every time.
       </p>
 
       {error && <p className="form-error">{error}</p>}
@@ -320,7 +373,10 @@ function CvComponents() {
         )}
       </section>
 
-      <section className="settings-section cv-component-section">
+      <section
+        className="settings-section cv-component-section"
+        ref={experienceSectionRef}
+      >
         <h2>Experience</h2>
         {experiences.length === 0 ? (
           <p className="empty-list-hint">No experience added yet.</p>
@@ -373,7 +429,10 @@ function CvComponents() {
         </div>
       </section>
 
-      <section className="settings-section cv-component-section">
+      <section
+        className="settings-section cv-component-section"
+        ref={educationSectionRef}
+      >
         <h2>Education</h2>
         {educations.length === 0 ? (
           <p className="empty-list-hint">No education added yet.</p>
@@ -383,10 +442,12 @@ function CvComponents() {
               <li key={edu.id} className="item-row">
                 <span className="item-name">
                   <span className="item-name-primary">
-                    {edu.qualification_title} — {edu.institution}
+                    {edu.level}
+                    {edu.subject ? ` — ${edu.subject}` : ''} — {edu.establishment}
                   </span>
                   <span className="item-subtext">
-                    {formatCvDateRange(edu)}
+                    {edu.qualification_year}
+                    {edu.grade ? ` · ${edu.grade}` : ''}
                   </span>
                 </span>
                 <div className="item-actions">
@@ -426,7 +487,66 @@ function CvComponents() {
         </div>
       </section>
 
-      <section className="settings-section cv-component-section">
+      <section
+        className="settings-section cv-component-section"
+        ref={certificationSectionRef}
+      >
+        <h2>Certifications</h2>
+        {certifications.length === 0 ? (
+          <p className="empty-list-hint">No certifications added yet.</p>
+        ) : (
+          <ul className="item-list">
+            {certifications.map((cert) => (
+              <li key={cert.id} className="item-row">
+                <span className="item-name">
+                  <span className="item-name-primary">
+                    {cert.title} — {cert.issuer}
+                  </span>
+                  <span className="item-subtext">
+                    {formatCvDateRange(cert)}
+                  </span>
+                </span>
+                <div className="item-actions">
+                  <button
+                    type="button"
+                    className="button-outline"
+                    onClick={() => {
+                      setEditingCertification(cert);
+                      setCertificationDialogOpen(true);
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="button-outline item-delete"
+                    onClick={() => setCertificationDeletePending(cert)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="cv-section-actions">
+          <button
+            type="button"
+            className="button-outline"
+            onClick={() => {
+              setEditingCertification(null);
+              setCertificationDialogOpen(true);
+            }}
+          >
+            Add certification
+          </button>
+        </div>
+      </section>
+
+      <section
+        className="settings-section cv-component-section"
+        ref={customSectionSectionRef}
+      >
         <h2>Custom sections</h2>
         {customSections.length === 0 ? (
           <p className="empty-list-hint">No custom sections added yet.</p>
@@ -491,7 +611,9 @@ function CvComponents() {
         experience={editingExperience}
         onSaved={() => {
           setExperienceDialogOpen(false);
-          loadAll();
+          loadAll({ silent: true }).then(() => {
+            experienceSectionRef.current?.scrollIntoView({ block: 'start' });
+          });
         }}
       />
 
@@ -501,7 +623,21 @@ function CvComponents() {
         education={editingEducation}
         onSaved={() => {
           setEducationDialogOpen(false);
-          loadAll();
+          loadAll({ silent: true }).then(() => {
+            educationSectionRef.current?.scrollIntoView({ block: 'start' });
+          });
+        }}
+      />
+
+      <CertificationDialog
+        open={certificationDialogOpen}
+        onClose={() => setCertificationDialogOpen(false)}
+        certification={editingCertification}
+        onSaved={() => {
+          setCertificationDialogOpen(false);
+          loadAll({ silent: true }).then(() => {
+            certificationSectionRef.current?.scrollIntoView({ block: 'start' });
+          });
         }}
       />
 
@@ -511,7 +647,9 @@ function CvComponents() {
         section={editingCustomSection}
         onSaved={() => {
           setCustomSectionDialogOpen(false);
-          loadAll();
+          loadAll({ silent: true }).then(() => {
+            customSectionSectionRef.current?.scrollIntoView({ block: 'start' });
+          });
         }}
       />
 
@@ -527,10 +665,19 @@ function CvComponents() {
       <ConfirmDialog
         open={!!educationDeletePending}
         title="Delete this education entry?"
-        message={`Delete "${educationDeletePending?.qualification_title} — ${educationDeletePending?.institution}"? This can't be undone.`}
+        message={`Delete "${educationDeletePending?.level} — ${educationDeletePending?.establishment}"? This can't be undone.`}
         confirmLabel="Delete"
         onConfirm={handleConfirmDeleteEducation}
         onCancel={() => setEducationDeletePending(null)}
+      />
+
+      <ConfirmDialog
+        open={!!certificationDeletePending}
+        title="Delete this certification?"
+        message={`Delete "${certificationDeletePending?.title} — ${certificationDeletePending?.issuer}"? This can't be undone.`}
+        confirmLabel="Delete"
+        onConfirm={handleConfirmDeleteCertification}
+        onCancel={() => setCertificationDeletePending(null)}
       />
 
       <ConfirmDialog
