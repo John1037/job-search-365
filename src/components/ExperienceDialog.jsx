@@ -278,6 +278,7 @@ function ExperienceDialog({ open, onClose, onSaved, experience }) {
             onChange={setBullets}
             addLabel="Add bullet"
             placeholder="e.g. Led the transformation of customer service into..."
+            rows={3}
           />
         )}
 

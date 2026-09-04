@@ -343,30 +343,51 @@ function JobDetail() {
     });
   }
 
-  async function handleViewDocument(doc) {
-    setDocsError(null);
-
+  // Fetches the file ourselves rather than opening a signed URL directly —
+  // that URL carries a (short-lived, single-object) access token, and
+  // opening it directly would put that token in the visible address bar
+  // and permanent browser history. A local blob: URL means the token is
+  // only ever used in this one background request. Shared by View
+  // (window.open) and Download (an <a download> click) below.
+  async function fetchDocumentBlobUrl(doc) {
     const { data, error: signError } = await supabase.storage
       .from('documents')
       .createSignedUrl(doc.storage_path, 60);
 
     if (signError) {
       setDocsError(signError.message);
-      return;
+      return null;
     }
 
-    // Fetch the file ourselves rather than opening the signed URL directly —
-    // that URL carries a (short-lived, single-object) access token, and
-    // opening it directly would put that token in the visible address bar
-    // and permanent browser history. Opening a local blob: URL instead
-    // means the token is only ever used in this one background request.
     const fileResponse = await fetch(data.signedUrl);
     if (!fileResponse.ok) {
       setDocsError('Failed to load document');
-      return;
+      return null;
     }
-    const blobUrl = URL.createObjectURL(await fileResponse.blob());
+    return URL.createObjectURL(await fileResponse.blob());
+  }
+
+  async function handleViewDocument(doc) {
+    setDocsError(null);
+    const blobUrl = await fetchDocumentBlobUrl(doc);
+    if (!blobUrl) return;
     window.open(blobUrl, '_blank', 'noopener,noreferrer');
+  }
+
+  // A blob: URL carries no filename of its own, so opening one (View) makes
+  // the browser fall back to some generic/id-derived name if the user tries
+  // to save from there — an <a download="..."> click is what actually lets
+  // us hand the browser the real file_name for the saved file.
+  async function handleDownloadDocument(doc) {
+    setDocsError(null);
+    const blobUrl = await fetchDocumentBlobUrl(doc);
+    if (!blobUrl) return;
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = doc.file_name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
   }
 
   async function handleSetFavorite(level) {
@@ -965,6 +986,7 @@ function JobDetail() {
         slots={documentSlots}
         connectedDocs={connectedDocs}
         onView={handleViewDocument}
+        onDownload={handleDownloadDocument}
         onDisconnect={handleDisconnectDocument}
         canDisconnect={job.status === 'Interested'}
       />
@@ -984,7 +1006,6 @@ function JobDetail() {
         open={buildCvDialogOpen}
         onClose={() => setBuildCvDialogOpen(false)}
         jobId={id}
-        employer={employer}
         cvWord={cvWord}
         onSave={(doc) => {
           handleConnectDocument(doc, 'cv');

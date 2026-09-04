@@ -7,6 +7,7 @@ import ExperienceDialog from '../components/ExperienceDialog';
 import EducationDialog from '../components/EducationDialog';
 import CertificationDialog from '../components/CertificationDialog';
 import CustomSectionDialog from '../components/CustomSectionDialog';
+import ImportCvDialog from '../components/ImportCvDialog';
 
 function experienceSortKey(exp) {
   if (exp.is_current) return Infinity;
@@ -49,6 +50,8 @@ function CvComponents() {
   const [editingCustomSection, setEditingCustomSection] = useState(null);
   const [customSectionDeletePending, setCustomSectionDeletePending] =
     useState(null);
+
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const experienceSectionRef = useRef(null);
   const educationSectionRef = useRef(null);
@@ -312,6 +315,16 @@ function CvComponents() {
         selects and arranges from whatever's relevant — not everything has
         to be used every time.
       </p>
+
+      <div className="cv-section-actions">
+        <button
+          type="button"
+          className="button-outline"
+          onClick={() => setImportDialogOpen(true)}
+        >
+          Import from an existing {cvWord}
+        </button>
+      </div>
 
       {error && <p className="form-error">{error}</p>}
 
@@ -650,6 +663,17 @@ function CvComponents() {
           loadAll({ silent: true }).then(() => {
             customSectionSectionRef.current?.scrollIntoView({ block: 'start' });
           });
+        }}
+      />
+
+      <ImportCvDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        existingSkills={skills.map((s) => s.skill_text)}
+        existingProfileSummary={cvSummary}
+        onImported={() => {
+          setImportDialogOpen(false);
+          loadAll();
         }}
       />
 

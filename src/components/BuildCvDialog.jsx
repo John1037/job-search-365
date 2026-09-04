@@ -5,7 +5,13 @@ import BulletListEditor from './BulletListEditor';
 import CvTemplateThumbnail from './CvTemplateThumbnail';
 import { supabase } from '../supabaseClient';
 import { CV_TEMPLATES, getTemplate } from '../cvTemplates/templates';
-import { renderCvPdf, cvToPlainText, imageUrlToDataUrl } from '../cvTemplates/renderCvPdf';
+import {
+  renderCvPdf,
+  cvToPlainText,
+  imageUrlToDataUrl,
+  FONT_FAMILIES,
+} from '../cvTemplates/renderCvPdf';
+import { sanitizeFileNamePart } from '../fileNaming';
 
 const DEFAULT_RECENT_ROLES = 3;
 
@@ -23,11 +29,71 @@ function toEditableList(strings) {
   return strings.map((text, i) => ({ id: `item-${i}`, text }));
 }
 
+// Deliberately doesn't filter out blank entries — this feeds the LIVE
+// editing state on every keystroke (including the instant after "Add" adds
+// a brand-new blank row), and filtering here would strip that blank row
+// back out before React ever gets to render it, making "Add" look like it
+// does nothing. Blank entries are pruned separately, only at the point the
+// CV is actually rendered (see pruneCvBlanks below).
 function fromEditableList(items) {
-  return items.map((it) => it.text).filter((t) => t.trim());
+  return items.map((it) => it.text);
 }
 
-function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
+function pruneBlankStrings(list) {
+  return list.filter((s) => s.trim());
+}
+
+// Strips blank list entries (an "Add"ed row the user never filled in, or
+// emptied out and forgot to remove) out of every list-shaped field in the
+// CV, right before it's rendered/saved — never applied to the live editing
+// state itself, so it can't interfere with adding a new (momentarily blank)
+// row the way filtering in fromEditableList did.
+function pruneCvBlanks(cv) {
+  return {
+    ...cv,
+    sections: cv.sections.map((section) => {
+      if (section.type === 'skills') {
+        return { ...section, items: pruneBlankStrings(section.items) };
+      }
+      if (section.type === 'experience') {
+        return {
+          ...section,
+          entries: section.entries.map((e) => ({
+            ...e,
+            bullets: pruneBlankStrings(e.bullets),
+          })),
+        };
+      }
+      if (section.type === 'certification') {
+        return {
+          ...section,
+          entries: section.entries.map((e) => ({
+            ...e,
+            items: pruneBlankStrings(e.items),
+          })),
+        };
+      }
+      if (section.type === 'education') {
+        return {
+          ...section,
+          groups: section.groups.map((g) => ({
+            ...g,
+            subgroups: g.subgroups.map((sg) => ({
+              ...sg,
+              qualifications: sg.qualifications.map((q) => ({
+                ...q,
+                items: pruneBlankStrings(q.items),
+              })),
+            })),
+          })),
+        };
+      }
+      return section;
+    }),
+  };
+}
+
+function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
   const [stage, setStage] = useState('configure');
   const [recentCount, setRecentCount] = useState(DEFAULT_RECENT_ROLES);
   const [recentMode, setRecentMode] = useState('roles');
@@ -35,11 +101,17 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
   const [templateId, setTemplateId] = useState(CV_TEMPLATES[0].id);
   const [paletteIndex, setPaletteIndex] = useState(0);
   const [includePhoto, setIncludePhoto] = useState(false);
+  const [fontFamily, setFontFamily] = useState('helvetica');
   const [previewUrl, setPreviewUrl] = useState(null);
   const [loading, setLoading] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+
+  const [librarySkills, setLibrarySkills] = useState([]);
+  const [skillPickerOpen, setSkillPickerOpen] = useState(false);
+  const [newSkillText, setNewSkillText] = useState('');
+  const [addingSkill, setAddingSkill] = useState(false);
 
   const template = getTemplate(templateId);
 
@@ -52,11 +124,30 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
     setTemplateId(CV_TEMPLATES[0].id);
     setPaletteIndex(0);
     setIncludePhoto(false);
+    setFontFamily('helvetica');
     setPreviewUrl((prev) => {
       if (prev) URL.revokeObjectURL(prev);
       return null;
     });
     setError(null);
+    setSkillPickerOpen(false);
+    setNewSkillText('');
+  }, [open]);
+
+  // The full skills library, independent of whatever build-cv selected —
+  // needed so the skills picker (below) can show what got left out.
+  useEffect(() => {
+    if (!open) return;
+
+    async function loadLibrarySkills() {
+      const { data } = await supabase
+        .from('cv_skills')
+        .select('id, skill_text')
+        .order('created_at', { ascending: true });
+      setLibrarySkills(data ?? []);
+    }
+
+    loadLibrarySkills();
   }, [open]);
 
   function clearPreview() {
@@ -125,6 +216,74 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
 
   function removeSection(sectionIndex) {
     setCv((c) => ({ ...c, sections: c.sections.filter((_, i) => i !== sectionIndex) }));
+  }
+
+  // Adds a skill (already-known text, from a library badge or a
+  // deduplicated free-text entry) to the skills section's live build list —
+  // skipping it if it's already there rather than adding a visible duplicate.
+  function addSkillToBuild(sectionIndex, text) {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    setCv((c) => {
+      const section = c.sections[sectionIndex];
+      if (section.items.some((t) => t.trim().toLowerCase() === trimmed.toLowerCase())) {
+        return c;
+      }
+      return {
+        ...c,
+        sections: c.sections.map((s, i) =>
+          i === sectionIndex ? { ...s, items: [...s.items, trimmed] } : s,
+        ),
+      };
+    });
+  }
+
+  // Free-text entry in the skills picker: reuse a matching library skill if
+  // one already exists (avoids inserting a duplicate row into cv_skills),
+  // otherwise save it as a brand-new permanent library skill and add it to
+  // this build too.
+  async function handleAddNewSkill(sectionIndex) {
+    const trimmed = newSkillText.trim();
+    if (!trimmed) return;
+
+    const existing = librarySkills.find(
+      (s) => s.skill_text.trim().toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (existing) {
+      addSkillToBuild(sectionIndex, existing.skill_text);
+      setNewSkillText('');
+      return;
+    }
+
+    setAddingSkill(true);
+    setError(null);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setError('Not signed in.');
+      setAddingSkill(false);
+      return;
+    }
+
+    const { data, error: insertError } = await supabase
+      .from('cv_skills')
+      .insert({ user_id: user.id, skill_text: trimmed })
+      .select('id, skill_text')
+      .single();
+
+    if (insertError) {
+      setError(insertError.message);
+      setAddingSkill(false);
+      return;
+    }
+
+    setLibrarySkills((list) => [...list, data]);
+    addSkillToBuild(sectionIndex, trimmed);
+    setNewSkillText('');
+    setAddingSkill(false);
   }
 
   // Education entries are grouped three deep — level, then establishment+
@@ -212,7 +371,13 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
 
     try {
       const photoDataUrl = await getPhotoDataUrl();
-      const blob = await renderCvPdf(cv, template, paletteIndex, photoDataUrl);
+      const blob = await renderCvPdf(
+        pruneCvBlanks(cv),
+        template,
+        paletteIndex,
+        photoDataUrl,
+        fontFamily,
+      );
       clearPreview();
       setPreviewUrl(URL.createObjectURL(blob));
     } catch {
@@ -233,7 +398,7 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
     if (!previewUrl) return;
     handlePreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templateId, paletteIndex, includePhoto]);
+  }, [templateId, paletteIndex, includePhoto, fontFamily]);
 
   async function handleSave() {
     setSaving(true);
@@ -249,18 +414,23 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
       return;
     }
 
+    const cleanCv = pruneCvBlanks(cv);
+
     let pdfBlob;
     try {
       const photoDataUrl = await getPhotoDataUrl();
-      pdfBlob = await renderCvPdf(cv, template, paletteIndex, photoDataUrl);
+      pdfBlob = await renderCvPdf(cleanCv, template, paletteIndex, photoDataUrl, fontFamily);
     } catch {
       setError('Failed to render the CV.');
       setSaving(false);
       return;
     }
 
-    const plainText = cvToPlainText(cv);
-    const baseName = `${employer} — ${cvWord}`;
+    const plainText = cvToPlainText(cleanCv);
+    const namePart = sanitizeFileNamePart(cv.name || 'CV') || 'CV';
+    const now = new Date();
+    const mmdd = `${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+    const baseName = `${namePart}_cv_${mmdd}`;
     const sanitizedBase = baseName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
     const txtPath = `${user.id}/${crypto.randomUUID()}-${sanitizedBase}.txt`;
     const pdfPath = `${user.id}/${crypto.randomUUID()}-${sanitizedBase}.pdf`;
@@ -325,22 +495,53 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
         <div className="build-cv-dialog-header">
           <h2>Build {cvWord}</h2>
           {stage === 'template' && cv && (
-            <div className="cv-palette-options">
-              {template.palettes.map((p, i) => (
+            <>
+              <div className="theme-toggle" role="radiogroup" aria-label="Font">
                 <button
-                  key={p.name}
                   type="button"
+                  role="radio"
+                  aria-checked={fontFamily === 'helvetica'}
                   className={
-                    'cv-palette-swatch' +
-                    (paletteIndex === i ? ' cv-palette-swatch-selected' : '')
+                    'theme-toggle-option' +
+                    (fontFamily === 'helvetica' ? ' theme-toggle-option-active' : '')
                   }
-                  style={{ backgroundColor: p.accent }}
-                  title={p.name}
-                  aria-label={p.name}
-                  onClick={() => setPaletteIndex(i)}
-                />
-              ))}
-            </div>
+                  onClick={() => setFontFamily('helvetica')}
+                >
+                  Sans-serif
+                </button>
+                {Object.entries(FONT_FAMILIES).map(([key, config]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="radio"
+                    aria-checked={fontFamily === key}
+                    className={
+                      'theme-toggle-option' +
+                      (fontFamily === key ? ' theme-toggle-option-active' : '')
+                    }
+                    onClick={() => setFontFamily(key)}
+                  >
+                    {config.label}
+                  </button>
+                ))}
+              </div>
+              <div className="cv-palette-options">
+                {template.palettes.map((p, i) => (
+                  <button
+                    key={p.name}
+                    type="button"
+                    className={
+                      'cv-palette-swatch' +
+                      (paletteIndex === i ? ' cv-palette-swatch-selected' : '')
+                    }
+                    style={{ backgroundColor: p.accent }}
+                    title={p.name}
+                    aria-label={p.name}
+                    onClick={() => setPaletteIndex(i)}
+                  />
+                ))}
+              </div>
+            </>
           )}
         </div>
 
@@ -397,7 +598,7 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
               <div key={section.id} className="cv-review-section">
                 <div className="cv-review-section-header">
                   <h3>{section.heading}</h3>
-                  {section.type === 'custom' && (
+                  {(section.type === 'custom' || section.type === 'links') && (
                     <button
                       type="button"
                       className="button-outline item-delete"
@@ -417,15 +618,70 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
                 )}
 
                 {section.type === 'skills' && (
-                  <BulletListEditor
-                    items={toEditableList(section.items)}
-                    onChange={(items) =>
-                      updateSection(sIndex, { items: fromEditableList(items) })
-                    }
-                    addLabel="Add skill"
-                    variant="compact"
-                    rows={1}
-                  />
+                  <>
+                    <BulletListEditor
+                      items={toEditableList(section.items)}
+                      onChange={(items) =>
+                        updateSection(sIndex, { items: fromEditableList(items) })
+                      }
+                      addLabel={skillPickerOpen ? 'Close' : 'Add skill'}
+                      variant="compact"
+                      rows={1}
+                      onAddClick={() => setSkillPickerOpen((o) => !o)}
+                    />
+                    {skillPickerOpen && (
+                      <div className="skill-picker">
+                        {(() => {
+                          const selectedLower = new Set(
+                            section.items.map((t) => t.trim().toLowerCase()),
+                          );
+                          const omitted = librarySkills.filter(
+                            (s) => !selectedLower.has(s.skill_text.trim().toLowerCase()),
+                          );
+                          return omitted.length > 0 ? (
+                            <div className="skill-picker-badges">
+                              {omitted.map((s) => (
+                                <button
+                                  type="button"
+                                  key={s.id}
+                                  className="skill-picker-badge"
+                                  onClick={() => addSkillToBuild(sIndex, s.skill_text)}
+                                >
+                                  {s.skill_text}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="field-hint">
+                              Every library skill is already in this build.
+                            </p>
+                          );
+                        })()}
+                        <div className="skill-picker-new">
+                          <input
+                            type="text"
+                            placeholder="Add a new skill…"
+                            value={newSkillText}
+                            onChange={(e) => setNewSkillText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddNewSkill(sIndex);
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            className="button-outline"
+                            disabled={addingSkill || !newSkillText.trim()}
+                            onClick={() => handleAddNewSkill(sIndex)}
+                          >
+                            {addingSkill ? 'Adding…' : 'Add'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {section.type === 'experience' &&
@@ -544,6 +800,16 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
                     </div>
                   ))}
 
+                {section.type === 'links' && (
+                  <ul className="cv-review-links">
+                    {section.items.map((item) => (
+                      <li key={item.label}>
+                        {item.label}: {item.url}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
                 {section.type === 'custom' && (
                   <>
                     {section.format === 'bullets' && (
@@ -596,8 +862,16 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
                     (templateId === t.id ? ' cv-template-option-selected' : '')
                   }
                   onClick={() => {
+                    // Persist the actual selected color across the switch —
+                    // matched by accent hex (not index), since it's the
+                    // color's real identity; falls back to the first swatch
+                    // only if the new template genuinely doesn't offer it.
+                    const currentAccent = template.palettes[paletteIndex]?.accent;
+                    const matchedIndex = t.palettes.findIndex(
+                      (p) => p.accent === currentAccent,
+                    );
                     setTemplateId(t.id);
-                    setPaletteIndex(0);
+                    setPaletteIndex(matchedIndex >= 0 ? matchedIndex : 0);
                   }}
                 >
                   <CvTemplateThumbnail template={t} />
@@ -606,14 +880,15 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
               ))}
             </div>
 
+
             <div className="confirm-dialog-actions">
               <button
                 type="button"
                 className="button-outline"
-                onClick={handlePreview}
+                onClick={previewUrl ? clearPreview : handlePreview}
                 disabled={previewing}
               >
-                {previewing ? 'Rendering…' : 'Preview'}
+                {previewing ? 'Rendering…' : previewUrl ? 'Close Preview' : 'Preview'}
               </button>
             </div>
 
@@ -676,7 +951,15 @@ function BuildCvDialog({ open, onClose, jobId, employer, cvWord, onSave }) {
               <button
                 type="button"
                 className="button-outline"
-                onClick={() => setStage('review')}
+                onClick={() => {
+                  // Content edits made after going back don't auto-refresh
+                  // an already-open preview (unlike template/palette/photo,
+                  // re-rendering on every keystroke would be wasteful) — so
+                  // clear it here rather than risk showing stale content
+                  // silently when the user returns to this stage.
+                  clearPreview();
+                  setStage('review');
+                }}
               >
                 Back
               </button>

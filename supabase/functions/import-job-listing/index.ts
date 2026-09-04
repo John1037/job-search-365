@@ -61,6 +61,55 @@ async function fetchListingTextWithRetry(url: string): Promise<string> {
   return await fetchListingText(url, 20);
 }
 
+// Many ATS platforms (Ashby, Greenhouse, Lever, Workday, ...) embed a
+// schema.org JobPosting block in the raw page HTML for SEO — server-rendered,
+// no JS needed to see it. It carries exact, unambiguous fields (workplace/
+// location type, employment type, salary, location) that Jina's readability
+// extraction above silently drops, since it's metadata rather than visible
+// "article" content — that's the actual reason location type/similar fields
+// have gone missing, not the model failing to infer them from prose. This is
+// a best-effort supplement to the scraped text, never a replacement: returns
+// null on any failure (blocked fetch, no such tag, unparseable JSON, no
+// JobPosting entry) rather than blocking the import.
+async function fetchJobPostingJsonLd(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; JobSearch365/1.0)' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    const scriptMatches = html.matchAll(
+      /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+    );
+
+    for (const match of scriptMatches) {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(match[1].trim());
+      } catch {
+        continue;
+      }
+
+      const candidates = Array.isArray(parsed) ? parsed : [parsed];
+      for (const candidate of candidates) {
+        if (candidate && typeof candidate === 'object' && candidate['@type'] === 'JobPosting') {
+          // Drop `description` — it's a large HTML-formatted duplicate of
+          // what the scraped page text already provides; keeping only the
+          // structured metadata fields keeps this compact and non-redundant.
+          const { description: _description, ...metadata } = candidate as Record<string, unknown>;
+          return JSON.stringify(metadata).slice(0, 4000);
+        }
+      }
+    }
+    return null;
+  } catch (err) {
+    console.log('[import-job-listing] JSON-LD fetch failed (non-fatal):', err);
+    return null;
+  }
+}
+
 const EXTRACTION_KEYS = [
   'job_title',
   'employer',
@@ -116,10 +165,15 @@ Deno.serve(async (req) => {
   }
 
   let pageText: string;
+  let jobPostingJsonLd: string | null;
   try {
     console.log('[import-job-listing] fetching listing:', url);
-    pageText = await fetchListingTextWithRetry(url);
+    [pageText, jobPostingJsonLd] = await Promise.all([
+      fetchListingTextWithRetry(url),
+      fetchJobPostingJsonLd(url),
+    ]);
     console.log('[import-job-listing] extracted page text length:', pageText.length);
+    console.log('[import-job-listing] JobPosting JSON-LD found:', !!jobPostingJsonLd);
   } catch (err) {
     console.log('[import-job-listing] listing fetch failed:', err);
     return jsonResponse({ error: 'Failed to fetch that job listing' }, 502);
@@ -141,12 +195,27 @@ Deno.serve(async (req) => {
     'employment_type (one of full_time, part_time), location_type (one of ' +
     'on_site, hybrid, remote), location (city/region text), description ' +
     "(the full job description, cleaned up as plain text). Use null for " +
-    "anything not clearly stated in the page — don't invent details. " +
+    "anything not clearly stated in the page — don't invent details. If a " +
+    "block of structured JobPosting data is included, it came straight from " +
+    "the page's own SEO metadata — prefer its explicit fields (employmentType, " +
+    'baseSalary, jobLocation) over inferring the same thing from prose. For ' +
+    'location_type specifically: if a workplaceType-style field spells out ' +
+    '"Hybrid"/"Remote"/"On-site" (or similar) in plain words, use that — it is ' +
+    "the reliable signal. Schema.org's own jobLocationType is NOT reliable for " +
+    'this: a value of "TELECOMMUTE" only means some remote work is allowed, ' +
+    "it does NOT mean fully remote, and many hybrid roles are tagged that way " +
+    "too — never map TELECOMMUTE to remote by itself; fall back to it only " +
+    'when nothing clearer is available, and prefer hybrid over remote in that ' +
+    'case if the page mentions any office/on-site presence at all. ' +
     'Example json shape: {"job_title": "Software Engineer", "employer": ' +
     '"Acme Ltd", "salary_min": 45000, "salary_max": 55000, ' +
     '"salary_currency": "GBP", "salary_type": "annual", "employment_type": ' +
     '"full_time", "location_type": "hybrid", "location": "London", ' +
     '"description": "..."}';
+
+  const userContent = jobPostingJsonLd
+    ? `Structured JobPosting data (from the page's own SEO metadata):\n${jobPostingJsonLd}\n\nWebpage text:\n${pageText}`
+    : `Webpage text:\n${pageText}`;
 
   try {
     console.log('[import-job-listing] calling DeepSeek');
@@ -167,7 +236,7 @@ Deno.serve(async (req) => {
           temperature: 0,
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Webpage text:\n${pageText}` },
+            { role: 'user', content: userContent },
           ],
         }),
         signal: AbortSignal.timeout(30000),

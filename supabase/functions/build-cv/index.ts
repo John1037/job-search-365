@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { parsePhoneNumberFromString } from 'https://esm.sh/libphonenumber-js@1.11.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,6 +43,37 @@ function formatDateRange(entry: DateRange): string {
       : 'Present';
 
   return `${start} - ${end}`;
+}
+
+// International E.164 format ("+447123456789") instead of "GB 07123456789"
+// — no spaces, ready to use directly as a tel: link. Delegates to
+// libphonenumber-js rather than a hand-rolled "strip the leading 0" regex:
+// whether the national trunk prefix gets dropped is NOT a universal rule
+// (most countries drop it, but e.g. Italian landline numbers keep their
+// leading 0 even in +39 international format) — this is exactly the kind
+// of per-country exception a real phone-number library knows and a regex
+// can't. It also handles stripping hyphens/spaces/parens itself.
+function formatInternationalPhone(
+  phoneCountry: string | null,
+  phoneNumber: string | null,
+): string | null {
+  const trimmed = phoneNumber?.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = phoneCountry
+      ? parsePhoneNumberFromString(trimmed, phoneCountry as never)
+      : parsePhoneNumberFromString(trimmed);
+    if (parsed?.number) return parsed.number;
+  } catch (err) {
+    console.log('[build-cv] phone parsing failed:', err);
+  }
+
+  // Couldn't confidently parse it (unrecognized country, garbled input,
+  // etc.) — fall back to the digits as typed rather than dropping a phone
+  // number the user did provide.
+  const digits = trimmed.replace(/\D/g, '');
+  return digits || null;
 }
 
 function dateSortKey(entry: DateRange): number {
@@ -126,7 +158,7 @@ Deno.serve(async (req) => {
     supabaseUser
       .from('profiles')
       .select(
-        'cv_summary, full_name, phone_country, phone_number, location, linkedin_url, github_url, avatar_url',
+        'cv_summary, full_name, phone_country, phone_number, location, linkedin_url, github_url, portfolio_url, website_url, avatar_url',
       )
       .eq('id', user.id)
       .maybeSingle(),
@@ -392,12 +424,25 @@ Deno.serve(async (req) => {
     tasks.push(
       (async () => {
         const res = await callDeepSeek(
-          'Given a job and a candidate\'s list of skills (id, text), choose ' +
-            'which skills are relevant to this job and order them by ' +
-            'relevance — required/most important first. Omit skills that ' +
-            "clearly don't fit; this is a curated CV, not everything the " +
-            'candidate has ever listed. Never invent an id. Respond with ' +
-            'JSON: {"skill_ids": ["..."]}',
+          'Given a job and a candidate\'s list of skills (id, text), decide ' +
+            'which to include on a tailored CV for this job and in what order. ' +
+            'Include a skill if it connects — even tangentially or ' +
+            'potentially — to something the job DESCRIPTION actually says: a ' +
+            'responsibility, requirement, tool, theme, or clearly implied ' +
+            'need. Omit a skill only if it has NO such connection at all — ' +
+            'not even a tangential or potential one — to anything the ' +
+            'description actually mentions. Being in the same general field ' +
+            "or profession as the job is NOT by itself enough to include a " +
+            "skill that doesn't connect to anything the description says; " +
+            "conversely, don't reason from the job title/field in the " +
+            'abstract — judge every skill against the description\'s actual ' +
+            'content. Separately, order by relevance — put first whichever ' +
+            'skills most directly match something the job title or ' +
+            'description specifically calls out (a named tool, technology, ' +
+            'domain, or capability — e.g. "automation" or "AI" when the role ' +
+            'is explicitly about automation/AI), with more tangentially-' +
+            'connected skills following after. Never invent an id. Respond ' +
+            'with JSON: {"skill_ids": ["..."]}',
           `${jobContext}\n\nSkills:\n${JSON.stringify(
             skills.map((s) => ({ id: s.id, text: s.skill_text })),
           )}`,
@@ -736,14 +781,29 @@ Deno.serve(async (req) => {
     });
   }
 
+  // "Links" is a plain derived list (no AI selection involved) so it's built
+  // here alongside the other sections, always last — the renderer places
+  // main-column sections in array order, so appending it here is what makes
+  // it the CV's final section.
+  const linkItems: { label: string; url: string }[] = [];
+  if (profile?.linkedin_url) linkItems.push({ label: 'LinkedIn', url: profile.linkedin_url });
+  if (profile?.github_url) linkItems.push({ label: 'GitHub', url: profile.github_url });
+  if (profile?.portfolio_url) linkItems.push({ label: 'Portfolio', url: profile.portfolio_url });
+  if (profile?.website_url) linkItems.push({ label: 'Website', url: profile.website_url });
+  if (linkItems.length > 0) {
+    sections.push({ id: 'links', type: 'links', heading: 'Links', items: linkItems });
+  }
+
   const cv = {
     name: profile?.full_name ?? null,
     contact: {
       email: user.email ?? null,
-      phone: [profile?.phone_country, profile?.phone_number].filter(Boolean).join(' ') || null,
+      phone: formatInternationalPhone(profile?.phone_country ?? null, profile?.phone_number ?? null),
       location: profile?.location ?? null,
       linkedin_url: profile?.linkedin_url ?? null,
       github_url: profile?.github_url ?? null,
+      portfolio_url: profile?.portfolio_url ?? null,
+      website_url: profile?.website_url ?? null,
     },
     avatar_url: profile?.avatar_url ?? null,
     sections,

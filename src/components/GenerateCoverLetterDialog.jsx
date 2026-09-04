@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import LoadingBar from './LoadingBar';
 import { supabase } from '../supabaseClient';
+import { sanitizeFileNamePart } from '../fileNaming';
 
 // Loaded on demand (only when a letter is actually saved) since jsPDF adds
 // a meaningful chunk of weight that most page loads never need.
@@ -92,7 +93,15 @@ function GenerateCoverLetterDialog({ open, onClose, jobId, employer, onSave }) {
       return;
     }
 
-    const baseName = `Cover letter - ${employer}`;
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const namePart = sanitizeFileNamePart(profile?.full_name || 'Cover_Letter') || 'Cover_Letter';
+    const employerPart = sanitizeFileNamePart(employer || '') || 'Employer';
+    const baseName = `${namePart}_cover_${employerPart}`;
     const sanitizedBase = baseName.replace(/[^a-zA-Z0-9.\-_]/g, '_');
     const txtPath = `${user.id}/${crypto.randomUUID()}-${sanitizedBase}.txt`;
     const pdfPath = `${user.id}/${crypto.randomUUID()}-${sanitizedBase}.pdf`;

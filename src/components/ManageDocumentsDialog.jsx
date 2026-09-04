@@ -6,6 +6,7 @@ function ManageDocumentsDialog({
   slots,
   connectedDocs,
   onView,
+  onDownload,
   onDisconnect,
   canDisconnect,
 }) {
@@ -27,28 +28,37 @@ function ManageDocumentsDialog({
             {connectedSlots.map((slot) => {
               const doc = connectedDocs[slot.key];
               return (
-                <li key={slot.key} className="item-row">
+                <li key={slot.key} className="item-row document-row document-row-stacked">
                   <span className="item-name">
                     <span className="item-name-primary">{doc.file_name}</span>
-                    <span className="item-subtext">{slot.label}</span>
                   </span>
-                  <div className="item-actions">
-                    <button
-                      type="button"
-                      className="button-outline"
-                      onClick={() => onView(doc)}
-                    >
-                      View
-                    </button>
-                    {canDisconnect && (
+                  <div className="document-row-details">
+                    <span className="item-meta">{slot.label}</span>
+                    <div className="item-actions">
                       <button
                         type="button"
-                        className="button-outline item-delete"
-                        onClick={() => onDisconnect(slot.key)}
+                        className="button-outline"
+                        onClick={() => onView(doc)}
                       >
-                        Disconnect
+                        View
                       </button>
-                    )}
+                      <button
+                        type="button"
+                        className="button-outline"
+                        onClick={() => onDownload(doc)}
+                      >
+                        Download
+                      </button>
+                      {canDisconnect && (
+                        <button
+                          type="button"
+                          className="button-outline item-delete"
+                          onClick={() => onDisconnect(slot.key)}
+                        >
+                          Disconnect
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </li>
               );

@@ -1,11 +1,13 @@
 // Shared by ExperienceDialog/EducationDialog (the library editors) and
 // BuildCvDialog's review stage — same add/remove/reorder UI everywhere,
-// just a different array of { id, text } items, and two optional knobs for
-// contexts where the content is expected to look different: `rows` sets
-// the per-item textarea's default height, and `variant="compact"` puts
+// just a different array of { id, text } items, and a few optional knobs
+// for contexts where the content is expected to look different: `rows`
+// sets the per-item textarea's default height, `variant="compact"` puts
 // the up/down/remove buttons in a horizontal row instead of stacked
 // vertically (for short, likely-one-line content like skills, where a
-// vertical button stack wastes height the text doesn't need).
+// vertical button stack wastes height the text doesn't need), and
+// `onAddClick` lets a caller replace what "Add" does entirely (e.g.
+// BuildCvDialog's skills picker) instead of appending a blank row.
 function BulletListEditor({
   items,
   onChange,
@@ -13,6 +15,7 @@ function BulletListEditor({
   placeholder,
   rows = 2,
   variant = 'stacked',
+  onAddClick,
 }) {
   function updateText(index, text) {
     onChange(items.map((item, i) => (i === index ? { ...item, text } : item)));
@@ -37,6 +40,10 @@ function BulletListEditor({
   }
 
   function add() {
+    if (onAddClick) {
+      onAddClick();
+      return;
+    }
     onChange([...items, { id: null, text: '' }]);
   }
 

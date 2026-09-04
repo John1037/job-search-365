@@ -32,6 +32,8 @@ function EditProfile() {
   const [country, setCountry] = useState('GB');
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
+  const [portfolioUrl, setPortfolioUrl] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [avatarFile, setAvatarFile] = useState(null);
@@ -57,7 +59,7 @@ function EditProfile() {
       const { data: profile, error } = await supabase
         .from('profiles')
         .select(
-          'full_name, short_name, phone_country, phone_number, location, country, avatar_url, linkedin_url, github_url',
+          'full_name, short_name, phone_country, phone_number, location, country, avatar_url, linkedin_url, github_url, portfolio_url, website_url',
         )
         .eq('id', user.id)
         .maybeSingle();
@@ -73,6 +75,8 @@ function EditProfile() {
         if (profile.country) setCountry(profile.country);
         setLinkedinUrl(profile.linkedin_url ?? '');
         setGithubUrl(profile.github_url ?? '');
+        setPortfolioUrl(profile.portfolio_url ?? '');
+        setWebsiteUrl(profile.website_url ?? '');
         setAvatarUrl(profile.avatar_url ?? null);
         setAvatarPreview(profile.avatar_url ?? null);
       }
@@ -139,6 +143,8 @@ function EditProfile() {
       country,
       linkedin_url: linkedinUrl || null,
       github_url: githubUrl || null,
+      portfolio_url: portfolioUrl || null,
+      website_url: websiteUrl || null,
       avatar_url: newAvatarUrl,
       updated_at: new Date().toISOString(),
     });
@@ -303,6 +309,48 @@ function EditProfile() {
           {githubUrl && (
             <a
               href={githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="url-field-open"
+            >
+              Open
+            </a>
+          )}
+        </div>
+
+        <label htmlFor="portfolioUrl">Portfolio</label>
+        <div className="url-field">
+          <input
+            id="portfolioUrl"
+            type="url"
+            placeholder="https://..."
+            value={portfolioUrl}
+            onChange={(e) => setPortfolioUrl(e.target.value)}
+          />
+          {portfolioUrl && (
+            <a
+              href={portfolioUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="url-field-open"
+            >
+              Open
+            </a>
+          )}
+        </div>
+
+        <label htmlFor="websiteUrl">Website</label>
+        <div className="url-field">
+          <input
+            id="websiteUrl"
+            type="url"
+            placeholder="https://..."
+            value={websiteUrl}
+            onChange={(e) => setWebsiteUrl(e.target.value)}
+          />
+          {websiteUrl && (
+            <a
+              href={websiteUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="url-field-open"

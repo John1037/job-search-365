@@ -480,6 +480,15 @@ body {
   margin-top: 12px;
 }
 
+/* A bare checkbox label (.filter-checkbox, no text of its own — e.g. a
+   review-card include/exclude toggle) shouldn't inherit the block-label
+   top margin above: applied as a flex-item margin, it pushes the checkbox
+   down away from its row's vertical center instead of leaving it centered
+   against its sibling content. */
+.profile-form .filter-checkbox {
+  margin-top: 0;
+}
+
 .form-row {
   display: flex;
   flex-wrap: wrap;
@@ -1232,6 +1241,22 @@ body {
   }
 }
 
+/* Same two-row layout as the media query above, but unconditional — for
+   ManageDocumentsDialog, a narrow modal where the full filename (now three
+   action buttons wide) needs its own row regardless of viewport width. */
+.document-row-stacked {
+  flex-wrap: wrap;
+}
+
+.document-row-stacked .item-name {
+  flex: 1 1 100%;
+}
+
+.document-row-stacked .document-row-details {
+  flex: 1 1 100%;
+  justify-content: space-between;
+}
+
 .email-match-list {
   list-style: none;
   padding: 0;
@@ -1370,6 +1395,8 @@ body {
 .confirm-dialog {
   width: 100%;
   max-width: 360px;
+  max-height: 85vh;
+  overflow-y: auto;
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -1700,6 +1727,7 @@ body {
 
 .filter-checkbox input[type='checkbox'] {
   width: auto;
+  margin: 0;
 }
 
 .filter-dropdown-trigger {
@@ -2201,6 +2229,53 @@ body {
   background: rgba(0, 0, 0, 0.08);
 }
 
+.skill-picker {
+  margin: 4px 0 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.skill-picker-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.skill-picker-badge {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.skill-picker-badge:hover {
+  opacity: 0.8;
+}
+
+.skill-picker-new {
+  display: flex;
+  gap: 8px;
+}
+
+.skill-picker-new input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 15px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+
 .cv-components-intro {
   margin-bottom: 24px;
 }
@@ -2252,10 +2327,18 @@ body {
   overflow-y: auto;
 }
 
+/* Title, font toggle, and color palette are three direct flex children
+   here (not the palette nested with the toggle in a sub-wrapper) so
+   space-between gives genuinely equal gaps between all three — title-to-
+   toggle the same width as toggle-to-palette — rather than anchoring the
+   toggle+palette as one bunched-together group on the right. Wraps as a
+   whole if it doesn't fit (the palette may grow up to 6 swatches per
+   template), rather than overflowing the dialog. */
 .build-cv-dialog-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -2268,6 +2351,20 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-top: 8px;
+}
+
+/* .profile-form label's margin-top: 12px (meant for stacked form fields)
+   also matches this row's bare "Template" label — already neutralized for
+   .filter-checkbox (the photo checkbox) elsewhere, but not for a plain
+   label, so it was pushing "Template" down out of true vertical center
+   against the checkbox beside it. */
+.cv-template-header-row > label {
+  margin-top: 0;
+}
+
+.cv-template-header-row > label:not(.filter-checkbox) {
+  font-weight: 600;
 }
 
 .cv-review {
@@ -2339,6 +2436,37 @@ body {
   font-size: 13px;
 }
 
+/* ImportCvDialog's review cards group the name/meta text under one wrapper
+   (rather than as two direct flex children of the header, like elsewhere)
+   so they always count as a single flex item — otherwise a long name and a
+   fixed-size meta chunk can end up on separate flex-wrap lines, and the
+   checkbox beside them then only centers against the first of those lines
+   instead of the full text block. */
+.cv-review-entry-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cv-review-entry-text .item-name-primary,
+.cv-review-entry-text .item-meta {
+  display: block;
+}
+
+/* Read-only preview of the derived "Links" section — nothing here is
+   editable, just a plain list of what will be printed. */
+.cv-review-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.cv-review-links li {
+  padding: 4px 0;
+}
+
 /* Bare textareas directly in a review section/entry (profile paragraph,
    earlier-career summary, custom section intro/content) — not the ones
    inside a .bullet-editor-row, which size via flex instead. */
@@ -2363,6 +2491,16 @@ body {
   display: block;
 }
 
+/* A checkbox opt-in (ImportCvDialog's profile-summary card) can also be a
+   direct child of .cv-review-section — without this, the rule above's
+   `display: block` (higher specificity than .filter-checkbox alone) wins
+   and silently breaks its flex centering, leaving the browser's default
+   inline-checkbox alignment instead (which sits noticeably high). */
+.cv-review-section > label.filter-checkbox {
+  display: flex;
+  margin-top: 10px;
+}
+
 /* Compact bullet-editor variant (skills): buttons run horizontally
    instead of stacking vertically, since a one-line item doesn't need the
    vertical room a stacked button column takes — the textarea narrows
@@ -2381,7 +2519,7 @@ body {
   overflow-x: auto;
   gap: 12px;
   margin: 8px 0 16px;
-  padding-bottom: 4px;
+  padding-bottom: 8px;
 }
 
 .cv-template-option {
@@ -2402,6 +2540,12 @@ body {
 .cv-template-option span {
   font-size: 13px;
   font-weight: 600;
+  text-align: center;
+  /* Reserves room for a two-line name (e.g. "Compact Sidebar") on every
+     card, not just the ones that need it, so cards stay a consistent
+     height and a longer name never gets squeezed against the thumbnail
+     above it. */
+  min-height: 2.4em;
 }
 
 .cv-template-option-selected {
@@ -2432,6 +2576,27 @@ body {
 
 .cv-palette-swatch-selected {
   border-color: var(--text);
+}
+
+/* "Ink" (#16171d) is nearly identical to the dark-theme dialog background
+   (--bg is also #16171d there) — without a border its swatch is almost
+   invisible against the dialog itself in dark mode. Deliberately thinner
+   (1px) than the 2px selected-state border and excluded when Ink actually
+   IS selected: at the same width/color they read as the same "selected"
+   signal, making an unselected Ink swatch look selected alongside whatever
+   color really is. Ink selected still gets the normal 2px selected look. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light'])
+    .cv-palette-swatch[aria-label='Ink']:not(.cv-palette-swatch-selected) {
+    border-width: 1px;
+    border-color: #fff;
+  }
+}
+
+:root[data-theme='dark']
+  .cv-palette-swatch[aria-label='Ink']:not(.cv-palette-swatch-selected) {
+  border-width: 1px;
+  border-color: #fff;
 }
 
 .cv-preview-frame {
