@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
+import { resetOnboardingCheck } from './onboarding';
 import Layout from './components/Layout';
 import Landing from './pages/Landing';
 import Signup from './pages/Signup';
 import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
+import Welcome from './pages/Welcome';
 import EditProfile from './pages/EditProfile';
 import Documents from './pages/Documents';
 import Settings from './pages/Settings';
@@ -48,7 +50,16 @@ function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      // A genuinely new authenticated session starting — as opposed to a
+      // token refresh or the initial getSession() on page load — is what
+      // "beginning of a session" means for the onboarding welcome gate.
+      // Without this, sessionStorage's flag from an earlier account (or an
+      // earlier attempt in the same tab) would wrongly suppress the check
+      // for whoever logs in next in that tab.
+      if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
+        resetOnboardingCheck();
+      }
       setSession(session);
     });
 
@@ -92,6 +103,7 @@ function App() {
           element={session ? <Layout /> : <Navigate to="/" replace />}
         >
           <Route path="/main" element={<Home />} />
+          <Route path="/welcome" element={<Welcome />} />
           <Route path="/profile" element={<EditProfile />} />
           <Route path="/documents/:category" element={<Documents />} />
           <Route path="/cv-components" element={<CvComponents />} />

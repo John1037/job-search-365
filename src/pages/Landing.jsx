@@ -127,7 +127,7 @@ function Landing() {
           </button>
           <Link
             to="/signup"
-            className="landing-button-primary landing-header-button"
+            className="button-primary landing-header-button"
           >
             Sign up
           </Link>
@@ -143,7 +143,7 @@ function Landing() {
             and offer in one place.
           </p>
           <div className="landing-actions">
-            <Link to="/signup" className="landing-button-primary">
+            <Link to="/signup" className="button-primary">
               Get started
             </Link>
             <button

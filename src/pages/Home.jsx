@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import JobListItem from '../components/JobListItem';
 import AddJobDialog from '../components/AddJobDialog';
+import { getOnboardingStatus, ONBOARDING_CHECKED_KEY } from '../onboarding';
 import {
   JOB_LIST_COLUMNS,
   UPCOMING_EVENT_NAMES,
@@ -27,9 +28,36 @@ function addDays(dateStr, days) {
 
 function Home() {
   const { shortName, alertWindowDays, country } = useOutletContext();
+  const navigate = useNavigate();
   const isUS = country === 'US';
   const displayName = shortName || 'User';
   const windowDays = alertWindowDays ?? 30;
+
+  // Runs at most once per browser session (tab) — the sessionStorage flag
+  // is set the instant the check runs, regardless of outcome, so revisiting
+  // /main later in the same session never re-triggers it, even if onboarding
+  // is still incomplete. A fresh tab/session re-checks from scratch.
+  useEffect(() => {
+    if (sessionStorage.getItem(ONBOARDING_CHECKED_KEY)) return;
+
+    let cancelled = false;
+
+    async function checkOnboarding() {
+      const status = await getOnboardingStatus();
+      if (cancelled || !status) return;
+
+      sessionStorage.setItem(ONBOARDING_CHECKED_KEY, '1');
+      if (status.dismissed) return;
+      const allComplete = status.profileComplete && status.cvComplete && status.jobComplete;
+      if (!allComplete) navigate('/welcome', { replace: true });
+    }
+
+    checkOnboarding();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   const [alerts, setAlerts] = useState([]);
   const [loadingAlerts, setLoadingAlerts] = useState(true);
