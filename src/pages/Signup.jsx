@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Footer from '../components/Footer';
+import SiteFooter from '../components/SiteFooter';
 import SignupDialog from '../components/SignupDialog';
 
 // No logged-in profile to read a country from on this page, so fall back
@@ -104,6 +105,7 @@ function Signup() {
         </div>
       </main>
 
+      <SiteFooter />
       <Footer />
 
       <SignupDialog open={signupOpen} onClose={() => setSignupOpen(false)} />

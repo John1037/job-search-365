@@ -1963,6 +1963,81 @@ body {
   flex-basis: 100%;
 }
 
+/* The full-width, in-flow footer — sits above the thin fixed .app-footer
+   bar on every page. body's padding-bottom already reserves room for the
+   fixed bar below whatever content comes last, so no extra spacing is
+   needed here to keep this from being covered. */
+.site-footer {
+  padding: 40px 24px 32px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.site-footer-columns {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 32px;
+}
+
+@media (max-width: 640px) {
+  .site-footer-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.site-footer-column h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.site-footer-column ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.site-footer-column a {
+  font-size: 14px;
+  color: var(--text);
+  opacity: 0.75;
+  text-decoration: none;
+}
+
+.site-footer-column a:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.site-footer-brand-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.site-footer-brand-name .brand-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.site-footer-brand p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.7;
+  line-height: 1.5;
+  max-width: 220px;
+}
+
 .danger-zone-divider {
   border: none;
   border-top: 1px solid var(--border);
