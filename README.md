@@ -1,4 +1,4 @@
-# Job Search 365
+# JobSearch 365
 
 A full-stack job application tracker — built to replace a spreadsheet for
 managing an active job search: every application, its status pipeline,

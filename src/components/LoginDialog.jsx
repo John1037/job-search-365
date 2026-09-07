@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
 import { supabase } from '../supabaseClient';
@@ -11,6 +11,13 @@ function LoginDialog({ open, onClose }) {
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
+  // Some browsers autofill a saved current-password value straight into the
+  // DOM without firing the input event React's onChange relies on — the
+  // field visually shows the saved password, but `password` state can stay
+  // stuck empty, silently submitting an empty password as "wrong
+  // credentials". Reading the live DOM value at submit time closes that gap.
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
 
   function resetAndClose() {
     setMode('sign-in');
@@ -34,8 +41,8 @@ function LoginDialog({ open, onClose }) {
     setLoading(true);
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+      email: emailRef.current?.value ?? email,
+      password: passwordRef.current?.value ?? password,
     });
 
     setLoading(false);
@@ -55,9 +62,10 @@ function LoginDialog({ open, onClose }) {
     setMessage(null);
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      emailRef.current?.value ?? email,
+      { redirectTo: `${window.location.origin}/reset-password` },
+    );
 
     setLoading(false);
     if (error) {
@@ -78,6 +86,7 @@ function LoginDialog({ open, onClose }) {
         <label htmlFor="loginEmail">Email</label>
         <input
           id="loginEmail"
+          ref={emailRef}
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -91,6 +100,7 @@ function LoginDialog({ open, onClose }) {
             <label htmlFor="loginPassword">Password</label>
             <input
               id="loginPassword"
+              ref={passwordRef}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

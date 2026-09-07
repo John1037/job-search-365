@@ -115,7 +115,7 @@ function Landing() {
       <header className="control-bar">
         <div className="control-bar-brand">
           <img src="/favicon.svg" alt="" className="brand-icon" />
-          <span className="brand-text">Job Search 365</span>
+          <span className="brand-text">JobSearch 365</span>
         </div>
 
         <div className="landing-header-actions">
@@ -137,7 +137,7 @@ function Landing() {
 
       <section className="landing-hero">
         <div className="landing-hero-inner">
-          <h1 className="landing-title">Job Search 365</h1>
+          <h1 className="landing-title">JobSearch 365</h1>
           <p className="landing-tagline">
             Track every application, interview
             <br />

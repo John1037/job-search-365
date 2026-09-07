@@ -141,7 +141,7 @@ function Welcome() {
     <div className="welcome-page">
       <section className="welcome-hero">
         <h1>
-          Welcome to Job Search 365{shortName ? `, ${shortName}` : ''}!
+          Welcome to JobSearch 365{shortName ? `, ${shortName}` : ''}!
         </h1>
         <p className="welcome-tagline">
           We're glad you're here. A few things to get you set up for a

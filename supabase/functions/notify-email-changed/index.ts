@@ -40,7 +40,7 @@ function buildEmailHtml(newEmail: string) {
                     <img src="https://jobsearch365.com/logo-email.png" width="30" height="29" alt="" style="display:block; border:0;">
                   </td>
                   <td style="vertical-align:middle;">
-                    <span style="font-size:19px; font-weight:800; font-style:italic; letter-spacing:-0.4px; text-transform:uppercase; color:#7e14ff;">Job Search 365</span>
+                    <span style="font-size:19px; font-weight:800; font-style:italic; letter-spacing:-0.4px; text-transform:uppercase; color:#7e14ff;">JOBSEARCH 365</span>
                   </td>
                 </tr>
               </table>
@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'Job Search 365 <support@jobsearch365.com>',
+      from: 'JobSearch 365 <support@jobsearch365.com>',
       to: [old_email],
       subject: 'Your Job Search 365 email address was changed',
       html: buildEmailHtml(new_email),

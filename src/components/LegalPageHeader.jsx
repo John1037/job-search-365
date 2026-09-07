@@ -42,7 +42,7 @@ function LegalPageHeader() {
       <header className="control-bar">
         <div className="control-bar-brand">
           <img src="/favicon.svg" alt="" className="brand-icon" />
-          <span className="brand-text">Job Search 365</span>
+          <span className="brand-text">JobSearch 365</span>
         </div>
       </header>
     );

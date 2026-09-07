@@ -7,6 +7,8 @@ import DeleteAccountDialog from '../components/DeleteAccountDialog';
 import ChangeEmailDialog from '../components/ChangeEmailDialog';
 import { sortedCountries } from '../data/countries';
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
 const EXTENSION_BY_MIME_TYPE = {
   'image/png': 'png',
@@ -26,6 +28,8 @@ function EditProfile() {
   const [fullName, setFullName] = useState('');
   const [shortName, setShortName] = useState('');
   const [email, setEmail] = useState('');
+  const [applicationEmail, setApplicationEmail] = useState('');
+  const [applicationEmailError, setApplicationEmailError] = useState(null);
   const [phoneCountry, setPhoneCountry] = useState('GB');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [location, setLocation] = useState('');
@@ -55,11 +59,14 @@ function EditProfile() {
 
       setUserId(user.id);
       setEmail(user.email ?? '');
+      // Prefilled from the account email until the user sets (and saves) an
+      // override — not written to the DB just by loading the page.
+      setApplicationEmail(user.email ?? '');
 
       const { data: profile, error } = await supabase
         .from('profiles')
         .select(
-          'full_name, short_name, phone_country, phone_number, location, country, avatar_url, linkedin_url, github_url, portfolio_url, website_url',
+          'full_name, short_name, phone_country, phone_number, location, country, avatar_url, linkedin_url, github_url, portfolio_url, website_url, application_email',
         )
         .eq('id', user.id)
         .maybeSingle();
@@ -77,6 +84,7 @@ function EditProfile() {
         setGithubUrl(profile.github_url ?? '');
         setPortfolioUrl(profile.portfolio_url ?? '');
         setWebsiteUrl(profile.website_url ?? '');
+        if (profile.application_email) setApplicationEmail(profile.application_email);
         setAvatarUrl(profile.avatar_url ?? null);
         setAvatarPreview(profile.avatar_url ?? null);
       }
@@ -106,6 +114,14 @@ function EditProfile() {
     e.preventDefault();
     setError(null);
     setMessage(null);
+    setApplicationEmailError(null);
+
+    const trimmedApplicationEmail = applicationEmail.trim();
+    if (!EMAIL_PATTERN.test(trimmedApplicationEmail)) {
+      setApplicationEmailError('Enter a valid email address.');
+      return;
+    }
+
     setSaving(true);
 
     let newAvatarUrl = avatarUrl;
@@ -145,6 +161,7 @@ function EditProfile() {
       github_url: githubUrl || null,
       portfolio_url: portfolioUrl || null,
       website_url: websiteUrl || null,
+      application_email: trimmedApplicationEmail,
       avatar_url: newAvatarUrl,
       updated_at: new Date().toISOString(),
     });
@@ -157,6 +174,7 @@ function EditProfile() {
 
     setAvatarUrl(newAvatarUrl);
     setAvatarFile(null);
+    setApplicationEmail(trimmedApplicationEmail);
     setLayoutAvatarUrl(newAvatarUrl);
     setLayoutShortName(shortName);
     setLayoutCountry(country);
@@ -233,7 +251,7 @@ function EditProfile() {
         />
         <p className="field-hint">How this app should address you.</p>
 
-        <label htmlFor="email">Email address</label>
+        <label htmlFor="email">Account email address</label>
         <div className="email-field">
           <input id="email" type="email" value={email} disabled />
           <button
@@ -244,6 +262,21 @@ function EditProfile() {
             Change
           </button>
         </div>
+
+        <label htmlFor="applicationEmail">Email address for applications</label>
+        <input
+          id="applicationEmail"
+          type="email"
+          value={applicationEmail}
+          onChange={(e) => setApplicationEmail(e.target.value)}
+        />
+        <p className="field-hint">
+          Used on CVs and anywhere else you're contacted about a job — separate
+          from your account's login email.
+        </p>
+        {applicationEmailError && (
+          <p className="form-error">{applicationEmailError}</p>
+        )}
 
         <label htmlFor="phoneNumber">Phone number</label>
         <PhoneField

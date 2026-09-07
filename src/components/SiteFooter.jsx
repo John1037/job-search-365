@@ -10,7 +10,7 @@ function SiteFooter() {
         <div className="site-footer-column site-footer-brand">
           <div className="site-footer-brand-name">
             <img src="/favicon.svg" alt="" className="brand-icon" />
-            Job Search 365
+            JobSearch 365
           </div>
           <p>Track every application, interview and offer in one place.</p>
         </div>

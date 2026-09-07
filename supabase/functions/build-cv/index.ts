@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
     supabaseUser
       .from('profiles')
       .select(
-        'cv_summary, full_name, phone_country, phone_number, location, linkedin_url, github_url, portfolio_url, website_url, avatar_url',
+        'cv_summary, full_name, phone_country, phone_number, location, linkedin_url, github_url, portfolio_url, website_url, avatar_url, application_email',
       )
       .eq('id', user.id)
       .maybeSingle(),
@@ -797,7 +797,11 @@ Deno.serve(async (req) => {
   const cv = {
     name: profile?.full_name ?? null,
     contact: {
-      email: user.email ?? null,
+      // application_email is a separate, user-editable address for
+      // job-application contact purposes — distinct from the account's
+      // login email, which is never used for this. Falls back to the
+      // account email for any profile saved before this field existed.
+      email: profile?.application_email || user.email || null,
       phone: formatInternationalPhone(profile?.phone_country ?? null, profile?.phone_number ?? null),
       location: profile?.location ?? null,
       linkedin_url: profile?.linkedin_url ?? null,
