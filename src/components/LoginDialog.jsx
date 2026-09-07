@@ -11,11 +11,14 @@ function LoginDialog({ open, onClose }) {
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
   const [loading, setLoading] = useState(false);
-  // Some browsers autofill a saved current-password value straight into the
-  // DOM without firing the input event React's onChange relies on — the
-  // field visually shows the saved password, but `password` state can stay
-  // stuck empty, silently submitting an empty password as "wrong
-  // credentials". Reading the live DOM value at submit time closes that gap.
+  // These two inputs are intentionally uncontrolled (no `value` prop) — a
+  // browser autofilling a saved credential writes straight to the DOM
+  // without firing React's onChange, and if the input were controlled,
+  // React's own next re-render (e.g. from typing in the other field, or
+  // just `loading` changing) would reassert the stale `email`/`password`
+  // state over the top and erase what the browser just filled in, right
+  // before submit reads it. Reading the live DOM value via ref at submit
+  // time is only reliable once React has stopped fighting the DOM for it.
   const emailRef = useRef(null);
   const passwordRef = useRef(null);
 
@@ -88,27 +91,29 @@ function LoginDialog({ open, onClose }) {
           id="loginEmail"
           ref={emailRef}
           type="email"
-          value={email}
+          defaultValue={email}
           onChange={(e) => setEmail(e.target.value)}
           required
           autoComplete="email"
           autoFocus
         />
 
-        {mode === 'sign-in' && (
-          <>
-            <label htmlFor="loginPassword">Password</label>
-            <input
-              id="loginPassword"
-              ref={passwordRef}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
-          </>
-        )}
+        {/* Hidden via CSS rather than conditionally rendered — unmounting
+            this field on a mode switch would destroy the DOM node and lose
+            an autofilled value on remount (defaultValue only applies once,
+            from whatever `password` state happened to be at that point). */}
+        <div style={{ display: mode === 'sign-in' ? 'contents' : 'none' }}>
+          <label htmlFor="loginPassword">Password</label>
+          <input
+            id="loginPassword"
+            ref={passwordRef}
+            type="password"
+            defaultValue={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required={mode === 'sign-in'}
+            autoComplete="current-password"
+          />
+        </div>
 
         {error && <p className="form-error">{error}</p>}
         {message && <p className="form-message">{message}</p>}
