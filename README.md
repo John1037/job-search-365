@@ -34,14 +34,26 @@ Live at [jobsearch365.com](https://jobsearch365.com).
   you confirm it, opening the same event dialog used everywhere else,
   pre-filled with the suggested event and date. Scanning is manual
   ("Scan now") for now; nothing runs automatically in the background yet.
-- **AI CV building** — maintain a reusable library of CV components
-  (profile summary, skills, work history with achievement bullets,
-  education, custom sections) on the "Manage CV components" page, then
-  build a CV tailored to a specific job: the LLM selects and orders only
-  what's relevant from the library (it's never asked to invent or reword
-  a stored skill/bullet — only to choose ids), while freshly drafting a
-  tailored profile paragraph and one-line summaries for older, compacted
-  roles. Editable before saving as both `.txt` and `.pdf`.
+  Access (and the local connection record) can be revoked at any time.
+- **AI CV building with a real template engine** — maintain a reusable
+  library of CV components (profile summary, skills, work history with
+  achievement bullets, education, certifications, custom sections) on the
+  "Manage CV components" page — either built up by hand or imported
+  wholesale from an existing `.pdf`/`.docx` CV, with the extracted content
+  reviewed and edited before anything is saved. Building a CV for a
+  specific job: the LLM selects and orders only what's relevant from the
+  library (it's never asked to invent or reword a stored skill/bullet —
+  only to choose ids) and drafts a tailored profile paragraph, with an
+  editable review step before rendering. Rendering goes through a
+  config-driven PDF engine (`src/cvTemplates/`) offering 8 layouts
+  (single-column, sidebar-left/right, compact, and bolder color-block
+  variants), 6 curated color palettes per layout, a serif/sans-serif font
+  toggle, optional profile photo, and an in-dialog live PDF preview before
+  saving.
+- **A dedicated "email address for applications"** — separate from the
+  account's login email, so CVs, cover letters, and anywhere else a user
+  is contacted about a job use an address that doesn't have to be the
+  same one they log in with.
 - **Full job detail editing** — title, employer, salary (min/max, currency,
   type, and basis — flat/estimated/OTE), employment type and duration,
   location type and location, job posting URL, contact person, application
@@ -57,59 +69,93 @@ Live at [jobsearch365.com](https://jobsearch365.com).
 - **Document management** — upload CVs, cover letters, certificates, and
   other supporting documents once, then connect them to any job via fixed
   slots; view or disconnect from the job detail page.
-- **Account & profile** — avatar upload, contact details, LinkedIn/GitHub
-  links, phone number with country code, timezone-aware date formatting
-  (US vs. rest-of-world), account deletion.
+- **Account & profile** — avatar upload, contact details, LinkedIn/GitHub/
+  portfolio/website links (surfaced on generated CVs as a Links section),
+  phone number with country code, timezone-aware date formatting (US vs.
+  rest-of-world), account deletion.
+- **Guided onboarding** — a welcome screen shown at the start of a session
+  whenever profile completion, CV-library completion, or "has ever added a
+  job" isn't yet satisfied, with live progress indicators per step and a
+  "don't show again" opt-out.
 - **Custom transactional email** — branded HTML templates (confirm signup,
   reset password, change email, and an email-changed security notice) sent
   via a custom SMTP provider rather than Supabase's default limited mailer.
 - **Theme-aware UI** — full light/dark mode support, including third-party
   browser autofill styling.
+- **Embedded support chat widget** — a third-party chat widget (a separate
+  project, `chat365`) is embedded site-wide via a `<script>` tag in
+  `index.html`, backed by its own knowledge base (see `docs/knowledge-base/`
+  below).
 
 ## Tech stack
 
 - **Frontend:** React 19 + Vite, React Router v7. No CSS framework — a
   single hand-written stylesheet with theme variables for light/dark mode.
 - **Backend:** [Supabase](https://supabase.com) — Postgres (RLS-scoped to
-  `auth.uid()` on every table), Auth, Storage (avatars, documents), and
-  Edge Functions (Deno) for account deletion, email-change notifications,
-  and several LLM-backed features (job import, cover letter drafting, CV
-  building, email-to-job matching).
+  `auth.uid()` on every table), Auth (served from a custom domain,
+  `auth.jobsearch365.com`, via Supabase's custom domain feature), Storage
+  (avatars, documents), and Edge Functions (Deno) for account deletion,
+  email-change notifications, and several LLM-backed features (job import,
+  CV import, cover letter drafting, CV building, email-to-job matching).
 - **AI:** [DeepSeek](https://www.deepseek.com) for job-listing extraction,
-  cover letter drafting, CV building, and email-to-job matching (many
-  small, targeted calls per operation rather than one large one, run
-  concurrently under a shared limiter). PDF text/layout extraction via
-  [`unpdf`](https://github.com/unjs/unpdf); PDF generation via
-  [`jsPDF`](https://github.com/parallax/jsPDF).
+  CV import extraction, cover letter drafting, CV building, and
+  email-to-job matching (many small, targeted calls per operation rather
+  than one large one, run concurrently under a shared limiter). PDF
+  text/layout extraction via [`unpdf`](https://github.com/unjs/unpdf); PDF
+  generation via [`jsPDF`](https://github.com/parallax/jsPDF).
 - **Gmail:** OAuth 2.0 (read-only `gmail.readonly` scope) + the Gmail API,
   called directly via `fetch()` rather than a client library.
 - **Email:** [Resend](https://resend.com) via custom SMTP, triggered
   partly by a Postgres trigger + `pg_net` calling an Edge Function
   directly from the database.
 - **Hosting:** [Cloudflare Pages](https://pages.cloudflare.com/), deployed
-  automatically on push via Git integration.
+  automatically on push via Git integration. Deploys go through Wrangler's
+  unified Workers-with-Assets path (`wrangler.jsonc` at the repo root) —
+  see [Deployment](#deployment).
 
 ## Project structure
 
 ```
 src/
-  pages/         Route-level pages (Home, ManageJobs, JobDetail, AddJob,
-                  Documents, CvComponents, Settings, EditProfile, Landing,
-                  Signup, ...)
+  pages/          Route-level pages (Home, Welcome, ManageJobs, JobDetail,
+                  AddJob, Documents, CvComponents, Settings, EditProfile,
+                  Landing, Signup, ...)
   components/     Reusable UI: dialogs (Add event, Filter, Sort, Connect
                   document, Add job / import from URL, Suggest cover
-                  letter, Build CV, Experience/Education/Custom section,
-                  ...), JobCard, LoadingBar, form fields, layout chrome
+                  letter, Build CV, Import CV, Experience/Education/
+                  Certification/Custom section, ...), JobCard, LoadingBar,
+                  form fields, layout chrome (nav, footer, chat widget host)
+  cvTemplates/    The CV rendering engine — renderCvPdf.js (generic,
+                  config-driven PDF renderer) and templates.js (per-template
+                  layout/palette/font data; adding a template needs no
+                  renderer changes)
   jobFormat.js    Shared job formatting/constants (labels, column list,
                   event-progression rules, CV date-range formatting)
   jobFilters.js   Filter option derivation + predicate logic
   jobSort.js      Multi-level sort logic
+  jobEvents.js    Event-logging side effects (status recalculation, auto
+                  close/reopen)
+  onboarding.js   Shared "is profile/CV-library/first-job complete" checks,
+                  used by both the session-start redirect and the welcome
+                  screen's live checklist
+  fileNaming.js   Sanitized, consistent filenames for generated documents
+  theme.js        Light/dark/system theme persistence
   supabaseClient.js
 supabase/
   functions/      Edge Functions — delete-account, notify-email-changed,
-                  import-job-listing, generate-cover-letter, build-cv,
-                  gmail-oauth-callback, scan-gmail-inbox
+                  import-job-listing, import-cv, generate-cover-letter,
+                  build-cv, gmail-oauth-callback, gmail-disconnect,
+                  scan-gmail-inbox
   config.toml     Local Supabase CLI config
+docs/
+  knowledge-base/ Standalone how-to documents (one per app function),
+                  written for embedding in a RAG vector store — not
+                  imported or referenced by the app itself. Each document
+                  is self-contained (no cross-document links), since
+                  neither the RAG agent nor the end user browsing chat
+                  answers has access to the file tree.
+wrangler.jsonc    Cloudflare Workers-with-Assets deploy config — see
+                  Deployment
 ```
 
 ## Local development
@@ -130,12 +176,12 @@ Environment variables (see `.env.example`):
 | `VITE_SUPABASE_ANON_KEY`   | Supabase publishable (client-safe) API key     |
 | `VITE_GOOGLE_CLIENT_ID`    | Google OAuth 2.0 Client ID (Gmail inbox scanning) |
 
-The AI-backed Edge Functions (`import-job-listing`, `generate-cover-letter`,
-`build-cv`, `scan-gmail-inbox`) need a `DEEPSEEK_API_KEY` — this is a
-**Supabase Edge Function secret**, not a Vite/frontend env var, so it never
-goes in `.env`. Set it with `supabase secrets set DEEPSEEK_API_KEY=...` for
-a deployed project, or in a local, gitignored `supabase/.env` for `supabase
-functions serve`.
+The AI-backed Edge Functions (`import-job-listing`, `import-cv`,
+`generate-cover-letter`, `build-cv`, `scan-gmail-inbox`) need a
+`DEEPSEEK_API_KEY` — this is a **Supabase Edge Function secret**, not a
+Vite/frontend env var, so it never goes in `.env`. Set it with
+`supabase secrets set DEEPSEEK_API_KEY=...` for a deployed project, or in a
+local, gitignored `supabase/.env` for `supabase functions serve`.
 
 Gmail inbox scanning additionally needs a Google Cloud OAuth 2.0 Client
 (Web application, `gmail.readonly` scope, authorized redirect URI
@@ -157,10 +203,35 @@ npm run lint       # oxlint
 
 ## Deployment
 
-Deploys automatically to Cloudflare Pages on push to `main`. Build
-environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) are
-configured in the Cloudflare Pages project settings rather than committed
-to the repo.
+Deploys automatically to Cloudflare Pages on push to `main`, via
+`npx wrangler versions upload` (Cloudflare's unified Workers-with-Assets
+deploy path — plain static-Pages deploys without a Wrangler config are no
+longer sufficient). `wrangler.jsonc` at the repo root is required for this
+to work at all:
+
+```jsonc
+{
+  "name": "job-search-365",
+  "compatibility_date": "2026-09-10",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
+```
+
+`not_found_handling: "single-page-application"` is what makes deep links
+and page refreshes (e.g. `/jobs/123`) resolve correctly instead of 404ing —
+without it, only paths matching an actual file in `dist/` would resolve,
+since this deploy path doesn't auto-detect an SPA and fall back to
+`index.html` the way classic Pages hosting did.
+
+Build environment variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
+are configured in the Cloudflare Pages project settings rather than
+committed to the repo. `VITE_SUPABASE_URL` points at a custom domain
+(`auth.jobsearch365.com`, set up via Supabase's Custom Domains feature)
+rather than the default `*.supabase.co` URL — the original project URL
+still works in parallel if ever needed.
 
 ## License
 
