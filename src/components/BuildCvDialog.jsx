@@ -97,6 +97,10 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
   const [stage, setStage] = useState('configure');
   const [recentCount, setRecentCount] = useState(DEFAULT_RECENT_ROLES);
   const [recentMode, setRecentMode] = useState('roles');
+  // Off by default — an explicit opt-in to let the AI lightly reword the
+  // profile paragraph and experience/earlier-career wording toward the job
+  // description's own terms, never changing what actually happened.
+  const [rewordForMatch, setRewordForMatch] = useState(false);
   const [cv, setCv] = useState(null);
   const [templateId, setTemplateId] = useState(CV_TEMPLATES[0].id);
   const [paletteIndex, setPaletteIndex] = useState(0);
@@ -128,6 +132,7 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
     setStage('configure');
     setRecentCount(DEFAULT_RECENT_ROLES);
     setRecentMode('roles');
+    setRewordForMatch(false);
     setCv(null);
     setTemplateId(CV_TEMPLATES[0].id);
     setPaletteIndex(0);
@@ -187,7 +192,12 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
     }
 
     const { data, error: fnError } = await supabase.functions.invoke('build-cv', {
-      body: { job_id: jobId, recent_mode: recentMode, recent_count: recentCount },
+      body: {
+        job_id: jobId,
+        recent_mode: recentMode,
+        recent_count: recentCount,
+        reword_for_match: rewordForMatch,
+      },
       headers: { Authorization: `Bearer ${session.access_token}` },
     });
 
@@ -668,6 +678,20 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
               {recentMode === 'roles'
                 ? 'Earlier roles are compacted into a single summary line each.'
                 : 'Roles outside this window are compacted into a single summary line each.'}
+            </p>
+
+            <label className="filter-checkbox">
+              <input
+                type="checkbox"
+                checked={rewordForMatch}
+                onChange={(e) => setRewordForMatch(e.target.checked)}
+              />
+              Let AI lightly reword wording to match this job
+            </label>
+            <p className="field-hint">
+              Only adjusts phrasing in your profile paragraph and experience
+              bullets to echo this job description's own language — it never
+              adds, removes, or changes what you actually did.
             </p>
           </>
         )}

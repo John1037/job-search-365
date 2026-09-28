@@ -112,9 +112,10 @@ Deno.serve(async (req) => {
   let job_id: string | undefined;
   let recent_mode: string | undefined;
   let recent_count: number | undefined;
+  let reword_for_match: boolean | undefined;
 
   try {
-    ({ job_id, recent_mode, recent_count } = await req.json());
+    ({ job_id, recent_mode, recent_count, reword_for_match } = await req.json());
   } catch (err) {
     console.log('[build-cv] failed to parse request body:', err);
     return jsonResponse({ error: 'Invalid request' }, 400);
@@ -129,6 +130,13 @@ Deno.serve(async (req) => {
     Number.isFinite(recent_count) && recent_count >= 0
       ? recent_count
       : DEFAULT_RECENT_ROLES;
+  // Opt-in and off by default — when on, allows the profile paragraph and
+  // experience/earlier-career wording to be lightly reworded toward the job
+  // description's own terms. Every prompt this touches carries an explicit
+  // "same facts, different words only" constraint; when this is false, none
+  // of that instruction text is added at all, so default behavior (already
+  // reviewed and trusted) is byte-for-byte unchanged.
+  const rewordForMatch = reword_for_match === true;
 
   const { data: job, error: jobError } = await supabaseUser
     .from('jobs')
@@ -407,6 +415,18 @@ Deno.serve(async (req) => {
     `Job title: ${job.job_title}\nEmployer: ${job.employer}\n\n` +
     `Job description:\n${job.description}`;
 
+  // Appended to a prompt only when rewordForMatch is on — kept as one
+  // shared string so every task that offers rewording states the same
+  // constraint the same way, rather than each drifting slightly.
+  const rewordInstruction =
+    ' You may lightly reword for alignment with the job description\'s own ' +
+    'terminology and phrasing, but ONLY the wording — never add, remove, ' +
+    'exaggerate, or change a single fact, claim, tool, responsibility, ' +
+    'metric, or outcome. The reworded text must describe exactly the same ' +
+    'reality as the original, in different words, not a better-sounding or ' +
+    'more-impressive version of it. If a genuinely honest wording match ' +
+    "isn't there, leave the original wording as-is rather than forcing one.";
+
   // Defensive fallbacks (include-everything) if a given call fails or
   // returns nothing usable — a build should still produce something
   // sensible rather than silently dropping a whole section.
@@ -415,6 +435,10 @@ Deno.serve(async (req) => {
   let profileSummary = (profile?.cv_summary ?? '').trim();
   let selectedCustomSectionIds = customSections.map((s) => s.id);
   const bulletSelectionByExperience = new Map<string, string[]>();
+  // Only populated when rewordForMatch is on — a selected bullet with no
+  // entry here (rewording skipped, failed to parse, or not offered one)
+  // simply falls back to its original stored text, same as always.
+  const bulletRewordByExperience = new Map<string, Map<string, string>>();
   const summaryByExperience = new Map<string, string>();
   const itemSelectionByEducation = new Map<string, string[]>();
   const itemSelectionByCertification = new Map<string, string[]>();
@@ -532,8 +556,9 @@ Deno.serve(async (req) => {
           "specific job, based on the candidate's seed paragraph and real " +
           'skills/roles given. Do not claim skills or experience not ' +
           'evidenced in what was given. If the seed is empty, write a ' +
-          'plain factual paragraph from the skills/roles alone. Respond ' +
-          'with JSON: {"profile_summary": "..."}',
+          'plain factual paragraph from the skills/roles alone.' +
+          (rewordForMatch ? rewordInstruction : '') +
+          ' Respond with JSON: {"profile_summary": "..."}',
         `${jobContext}\n\nCandidate overview:\n${JSON.stringify(overview)}`,
       );
       if (typeof res?.profile_summary === 'string' && res.profile_summary.trim()) {
@@ -548,23 +573,72 @@ Deno.serve(async (req) => {
 
     tasks.push(
       (async () => {
+        const validIds = new Set(bullets.map((b) => b.id));
+        const bulletsPayload = JSON.stringify(
+          bullets.map((b) => ({ id: b.id, text: b.bullet_text })),
+        );
+
+        if (!rewordForMatch) {
+          const res = await callDeepSeek(
+            'Given a job and a list of achievement/responsibility bullets ' +
+              '(id, text) for one role on a candidate\'s CV, choose which are ' +
+              'relevant to this job and order them by relevance. Keep enough ' +
+              "to represent the role well; omit ones that clearly don't fit. " +
+              'Never invent an id or bullet text. Respond with JSON: ' +
+              '{"bullet_ids": ["..."]}',
+            `${jobContext}\n\nRole: ${entry.job_title} at ${entry.employer}\n` +
+              `Bullets:\n${bulletsPayload}`,
+          );
+          const ids = Array.isArray(res?.bullet_ids) ? res.bullet_ids : null;
+          const filtered = ids ? ids.filter((id: string) => validIds.has(id)) : [];
+          bulletSelectionByExperience.set(
+            entry.id,
+            filtered.length > 0 ? filtered : bullets.map((b) => b.id),
+          );
+          return;
+        }
+
+        // Reword variant: same selection/ordering task, but for each
+        // selected bullet also returns its text — copied unchanged unless a
+        // light wording tweak genuinely aligns it with the job description.
         const res = await callDeepSeek(
           'Given a job and a list of achievement/responsibility bullets ' +
             '(id, text) for one role on a candidate\'s CV, choose which are ' +
             'relevant to this job and order them by relevance. Keep enough ' +
             "to represent the role well; omit ones that clearly don't fit. " +
-            'Never invent an id or bullet text. Respond with JSON: ' +
-            '{"bullet_ids": ["..."]}',
+            'For each selected bullet, return its id and its text: copy the ' +
+            'text unchanged unless a light wording tweak would align it ' +
+            "closer to the job description's own terminology, in which case " +
+            'return that reworded version instead.' +
+            rewordInstruction +
+            ' Never invent an id, and never return a bullet for an id that ' +
+            "wasn't given. Respond with JSON: " +
+            '{"bullets": [{"id": "...", "text": "..."}]}',
           `${jobContext}\n\nRole: ${entry.job_title} at ${entry.employer}\n` +
-            `Bullets:\n${JSON.stringify(bullets.map((b) => ({ id: b.id, text: b.bullet_text })))}`,
+            `Bullets:\n${bulletsPayload}`,
         );
-        const ids = Array.isArray(res?.bullet_ids) ? res.bullet_ids : null;
-        const validIds = new Set(bullets.map((b) => b.id));
-        const filtered = ids ? ids.filter((id: string) => validIds.has(id)) : [];
-        bulletSelectionByExperience.set(
-          entry.id,
-          filtered.length > 0 ? filtered : bullets.map((b) => b.id),
+        const items = Array.isArray(res?.bullets) ? res.bullets : null;
+        const filteredItems = (items ?? []).filter(
+          (it: unknown): it is { id: string; text: string } =>
+            !!it &&
+            typeof (it as { id?: unknown }).id === 'string' &&
+            validIds.has((it as { id: string }).id) &&
+            typeof (it as { text?: unknown }).text === 'string' &&
+            (it as { text: string }).text.trim().length > 0,
         );
+
+        if (filteredItems.length > 0) {
+          bulletSelectionByExperience.set(
+            entry.id,
+            filteredItems.map((it) => it.id),
+          );
+          bulletRewordByExperience.set(
+            entry.id,
+            new Map(filteredItems.map((it) => [it.id, it.text.trim()])),
+          );
+        } else {
+          bulletSelectionByExperience.set(entry.id, bullets.map((b) => b.id));
+        }
       })(),
     );
   }
@@ -578,7 +652,9 @@ Deno.serve(async (req) => {
         const res = await callDeepSeek(
           'Summarize this role in one dense sentence for a CV\'s compacted ' +
             '"earlier career" section, grounded only in the bullets given — ' +
-            'no invented detail. Respond with JSON: {"summary": "..."}',
+            'no invented detail.' +
+            (rewordForMatch ? rewordInstruction : '') +
+            ' Respond with JSON: {"summary": "..."}',
           `${jobContext}\n\nRole: ${entry.job_title} at ${entry.employer}\n` +
             `Bullets:\n${JSON.stringify(bullets)}`,
         );
@@ -643,9 +719,13 @@ Deno.serve(async (req) => {
   await Promise.all(tasks);
 
   // --- Assemble the structured result, defensively, from OUR stored text
-  // only — sections/entries below reference selected ids but always
-  // render our own stored text for them, never anything the model
-  // returned directly, and only appear if they end up with content. ---
+  // by default — sections/entries below reference selected ids and render
+  // our own stored text for them, not the model's own text, EXCEPT: the
+  // profile paragraph and earlier-career summaries are always model-drafted
+  // (from real, given skills/bullets only), and experience bullets render a
+  // reworded version instead of the stored one only when rewordForMatch was
+  // requested AND the model actually returned one — otherwise stored text,
+  // as always. Sections only appear if they end up with content. ---
 
   const skillTextById = new Map(skills.map((s) => [s.id, s.skill_text]));
   const sections: Record<string, unknown>[] = [];
@@ -671,6 +751,7 @@ Deno.serve(async (req) => {
       entries: recentExperience.map((entry) => {
         const available = bulletsByExperience.get(entry.id) ?? [];
         const bulletTextById = new Map(available.map((b) => [b.id, b.bullet_text]));
+        const rewordedById = bulletRewordByExperience.get(entry.id);
         return {
           id: entry.id,
           title: entry.job_title,
@@ -678,7 +759,7 @@ Deno.serve(async (req) => {
           location: entry.location,
           date_range: formatDateRange(entry),
           bullets: (bulletSelectionByExperience.get(entry.id) ?? [])
-            .map((id) => bulletTextById.get(id))
+            .map((id) => rewordedById?.get(id) ?? bulletTextById.get(id))
             .filter(Boolean),
         };
       }),
