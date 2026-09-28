@@ -411,6 +411,7 @@ Deno.serve(async (req) => {
   // returns nothing usable — a build should still produce something
   // sensible rather than silently dropping a whole section.
   let selectedSkillIds = skills.map((s) => s.id);
+  let suggestedNewSkills: string[] = [];
   let profileSummary = (profile?.cv_summary ?? '').trim();
   let selectedCustomSectionIds = customSections.map((s) => s.id);
   const bulletSelectionByExperience = new Map<string, string[]>();
@@ -456,6 +457,43 @@ Deno.serve(async (req) => {
       })(),
     );
   }
+
+  // Separate from skill selection above (that prompt stays untouched) —
+  // this one looks the other direction: specific skills the job description
+  // names or clearly requires that the candidate's library doesn't already
+  // cover, even loosely, so the review step can offer to add them rather
+  // than silently building a CV that under-represents a real match.
+  tasks.push(
+    (async () => {
+      const res = await callDeepSeek(
+        'Given a job description and a candidate\'s existing list of ' +
+          'skills, identify specific, concrete skills the job description ' +
+          'explicitly names or clearly requires (named tools, technologies, ' +
+          'methodologies, certifications, or capabilities) that are NOT ' +
+          'already covered by an existing skill — not even loosely or under ' +
+          'a different name/phrasing (e.g. skip "JavaScript" if "JS" is ' +
+          'already listed, skip "project management" if "managing projects" ' +
+          'is already listed). Do not suggest vague soft skills (e.g. ' +
+          '"communication", "teamwork") unless the description names them ' +
+          'as a specific, distinct requirement. Only suggest something a ' +
+          'candidate applying to this kind of role could plausibly already ' +
+          'have — this is a shortlist for the candidate to confirm they ' +
+          'genuinely have, not a wishlist to pad a CV with. Respond with ' +
+          'JSON: {"missing_skills": ["..."]} (empty array if none; at most ' +
+          '8 entries, ordered by how central each is to the job).',
+        `${jobContext}\n\nExisting skills:\n${JSON.stringify(
+          skills.map((s) => s.skill_text),
+        )}`,
+      );
+      const missing = Array.isArray(res?.missing_skills) ? res.missing_skills : null;
+      if (missing) {
+        suggestedNewSkills = missing
+          .filter((s: unknown): s is string => typeof s === 'string' && s.trim().length > 0)
+          .map((s: string) => s.trim())
+          .slice(0, 8);
+      }
+    })(),
+  );
 
   if (customSections.length > 0) {
     tasks.push(
@@ -813,5 +851,5 @@ Deno.serve(async (req) => {
     sections,
   };
 
-  return jsonResponse({ cv }, 200);
+  return jsonResponse({ cv, suggested_new_skills: suggestedNewSkills }, 200);
 });

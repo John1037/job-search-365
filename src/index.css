@@ -2477,6 +2477,19 @@ body {
   opacity: 0.8;
 }
 
+/* Toggle-selected state, used by the suggested-skills step (click to
+   mark "I genuinely have this" before adding) — distinct from the plain
+   badge's "click to instantly add" use elsewhere, so it needs its own
+   persistent selected look rather than just a hover state. */
+.skill-picker-badge-selected {
+  background: var(--accent);
+  color: #fff;
+}
+
+.skill-picker-badge-selected:hover {
+  opacity: 0.9;
+}
+
 .skill-picker-new {
   display: flex;
   gap: 8px;

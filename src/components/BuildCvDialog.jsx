@@ -113,6 +113,14 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
   const [newSkillText, setNewSkillText] = useState('');
   const [addingSkill, setAddingSkill] = useState(false);
 
+  // Skills the job description names that aren't in the library yet — shown
+  // as their own stage right after the first build, before review, so the
+  // user can add any they genuinely have and get a build that reflects them,
+  // rather than discovering the gap only after everything's already drafted.
+  const [suggestedNewSkills, setSuggestedNewSkills] = useState([]);
+  const [selectedNewSkills, setSelectedNewSkills] = useState(() => new Set());
+  const [addingSuggestedSkills, setAddingSuggestedSkills] = useState(false);
+
   const template = getTemplate(templateId);
 
   useEffect(() => {
@@ -132,6 +140,8 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
     setError(null);
     setSkillPickerOpen(false);
     setNewSkillText('');
+    setSuggestedNewSkills([]);
+    setSelectedNewSkills(new Set());
   }, [open]);
 
   // The full skills library, independent of whatever build-cv selected —
@@ -157,7 +167,12 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
     });
   }
 
-  async function handleBuild() {
+  // isRebuild is true only for the rerun triggered from the suggested-skills
+  // stage itself — that rerun always goes straight to review even if the
+  // response still lists suggestions (e.g. ones the user deliberately chose
+  // not to add), so accepting/declining suggestions is a one-time step per
+  // build rather than a loop that keeps re-asking about the same skills.
+  async function handleBuild(isRebuild = false) {
     setLoading(true);
     setError(null);
 
@@ -184,7 +199,81 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
     }
 
     setCv(data.cv);
-    setStage('review');
+
+    const suggestions = Array.isArray(data.suggested_new_skills)
+      ? data.suggested_new_skills
+      : [];
+
+    if (!isRebuild && suggestions.length > 0) {
+      setSuggestedNewSkills(suggestions);
+      setSelectedNewSkills(new Set());
+      setStage('suggested-skills');
+    } else {
+      setStage('review');
+    }
+  }
+
+  function toggleSuggestedSkill(text) {
+    setSelectedNewSkills((set) => {
+      const next = new Set(set);
+      if (next.has(text)) {
+        next.delete(text);
+      } else {
+        next.add(text);
+      }
+      return next;
+    });
+  }
+
+  // Saves whichever suggested skills the user actually checked as real,
+  // permanent library skills (same table the manual "Add skill" flow
+  // writes to), then reruns the build so the new skills get a genuine
+  // chance to be selected — never just spliced into the draft directly,
+  // since the point is to reflect real content the build engine reasoned
+  // over, not to fake a match.
+  async function handleAddSuggestedSkillsAndRebuild() {
+    if (selectedNewSkills.size === 0) {
+      setStage('review');
+      return;
+    }
+
+    setAddingSuggestedSkills(true);
+    setError(null);
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      setError('Not signed in.');
+      setAddingSuggestedSkills(false);
+      return;
+    }
+
+    const existingLower = new Set(
+      librarySkills.map((s) => s.skill_text.trim().toLowerCase()),
+    );
+    const toInsert = Array.from(selectedNewSkills).filter(
+      (text) => !existingLower.has(text.trim().toLowerCase()),
+    );
+
+    if (toInsert.length > 0) {
+      const { data: inserted, error: insertError } = await supabase
+        .from('cv_skills')
+        .insert(toInsert.map((text) => ({ user_id: user.id, skill_text: text })))
+        .select('id, skill_text');
+
+      if (insertError) {
+        setError(insertError.message);
+        setAddingSuggestedSkills(false);
+        return;
+      }
+
+      setLibrarySkills((list) => [...list, ...(inserted ?? [])]);
+    }
+
+    setAddingSuggestedSkills(false);
+    await handleBuild(true);
   }
 
   function updateSection(index, patch) {
@@ -592,6 +681,36 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
 
         {error && <p className="form-error">{error}</p>}
 
+        {stage === 'suggested-skills' && !loading && (
+          <div className="suggested-skills-step">
+            <p className="field-hint">
+              This job description mentions skills that aren't in your CV
+              components library yet. Check off any you genuinely have and
+              they'll be added to your library and given a real chance to
+              appear on this {cvWord} — don't add one just to make the{' '}
+              {cvWord} fit the job description better, since that's exactly
+              the kind of claim that falls apart if it comes up in an
+              interview.
+            </p>
+            <div className="skill-picker-badges">
+              {suggestedNewSkills.map((text) => (
+                <button
+                  type="button"
+                  key={text}
+                  className={
+                    'skill-picker-badge' +
+                    (selectedNewSkills.has(text) ? ' skill-picker-badge-selected' : '')
+                  }
+                  aria-pressed={selectedNewSkills.has(text)}
+                  onClick={() => toggleSuggestedSkill(text)}
+                >
+                  {text}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {stage === 'review' && cv && (
           <div className="cv-review">
             {cv.sections.map((section, sIndex) => (
@@ -924,9 +1043,32 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
                 type="button"
                 className="button-positive"
                 disabled={loading}
-                onClick={handleBuild}
+                onClick={() => handleBuild()}
               >
                 {loading ? 'Building…' : 'Build'}
+              </button>
+            </>
+          )}
+
+          {stage === 'suggested-skills' && (
+            <>
+              <button
+                type="button"
+                className="button-outline"
+                disabled={addingSuggestedSkills}
+                onClick={() => setStage('review')}
+              >
+                Skip
+              </button>
+              <button
+                type="button"
+                className="button-positive"
+                disabled={addingSuggestedSkills || loading || selectedNewSkills.size === 0}
+                onClick={handleAddSuggestedSkillsAndRebuild}
+              >
+                {addingSuggestedSkills || loading
+                  ? 'Adding…'
+                  : `Add ${selectedNewSkills.size} skill${selectedNewSkills.size === 1 ? '' : 's'} and rebuild`}
               </button>
             </>
           )}
