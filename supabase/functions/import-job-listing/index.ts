@@ -321,7 +321,12 @@ Deno.serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'nvidia.nemotron-super-3-120b',
+          // Nano rather than Super here specifically: this call's large
+          // page-text context pushed Super past a 30s budget. Nano trades
+          // some extraction nuance (e.g. the TELECOMMUTE/hybrid/remote
+          // judgment call below) for materially lower latency — worth
+          // keeping an eye on actual extraction quality, not just speed.
+          model: 'nvidia.nemotron-nano-3-30b',
           max_completion_tokens: 4096,
           // Keep extraction consistent run-to-run rather than creative.
           temperature: 0,
@@ -330,7 +335,9 @@ Deno.serve(async (req) => {
             { role: 'user', content: userContent },
           ],
         }),
-        signal: AbortSignal.timeout(30000),
+        // Kept at 60s as a safety margin until Nano's real-world latency
+        // on this call is observed — tighten once that's known.
+        signal: AbortSignal.timeout(60000),
       },
     );
 
