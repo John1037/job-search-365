@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 
-// Four columns by design, even though only "Legal" is populated today —
-// Product and Support are placeholders for when there's real content to
-// put in them, not dead weight to remove.
+// Four columns by design, even though only "Legal" and "Support" are
+// populated today — Product is a placeholder for when there's real content
+// to put in it, not dead weight to remove.
 function SiteFooter() {
+  const year = new Date().getFullYear();
+
   return (
     <footer className="site-footer">
       <div className="site-footer-columns">
@@ -13,6 +15,9 @@ function SiteFooter() {
             JobSearch 365
           </div>
           <p>Track every application, interview and offer in one place.</p>
+          <p className="site-footer-copyright">
+            &copy; {year} · 365 Applications Ltd
+          </p>
         </div>
 
         <div className="site-footer-column">
@@ -33,6 +38,13 @@ function SiteFooter() {
 
         <div className="site-footer-column">
           <h3>Support</h3>
+          <ul>
+            <li>
+              <a href="mailto:support@jobsearch365.com">
+                support@jobsearch365.com
+              </a>
+            </li>
+          </ul>
         </div>
       </div>
     </footer>

@@ -3,7 +3,6 @@ import { Outlet } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import ControlBar from './ControlBar';
 import SiteFooter from './SiteFooter';
-import Footer from './Footer';
 
 function Layout() {
   const [avatarUrl, setAvatarUrl] = useState(null);
@@ -55,7 +54,6 @@ function Layout() {
         }}
       />
       <SiteFooter />
-      <Footer />
     </>
   );
 }

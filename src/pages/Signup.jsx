@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import Footer from '../components/Footer';
 import SiteFooter from '../components/SiteFooter';
 import SignupDialog from '../components/SignupDialog';
 
@@ -106,7 +105,6 @@ function Signup() {
       </main>
 
       <SiteFooter />
-      <Footer />
 
       <SignupDialog open={signupOpen} onClose={() => setSignupOpen(false)} />
     </>

@@ -1,4 +1,3 @@
-import Footer from '../components/Footer';
 import SiteFooter from '../components/SiteFooter';
 import LegalPageHeader from '../components/LegalPageHeader';
 
@@ -174,7 +173,6 @@ function PrivacyPolicy() {
       </main>
 
       <SiteFooter />
-      <Footer />
     </>
   );
 }

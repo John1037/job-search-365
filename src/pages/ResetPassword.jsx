@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import Footer from '../components/Footer';
 import SiteFooter from '../components/SiteFooter';
 
 function ResetPassword() {
@@ -70,7 +69,6 @@ function ResetPassword() {
         </form>
       </div>
       <SiteFooter />
-      <Footer />
     </>
   );
 }

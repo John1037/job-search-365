@@ -1,4 +1,3 @@
-import Footer from '../components/Footer';
 import SiteFooter from '../components/SiteFooter';
 import LegalPageHeader from '../components/LegalPageHeader';
 
@@ -121,7 +120,6 @@ function TermsOfService() {
       </main>
 
       <SiteFooter />
-      <Footer />
     </>
   );
 }
