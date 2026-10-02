@@ -345,7 +345,7 @@ Deno.serve(async (req) => {
   // A single call covering the whole library (skills + every role's
   // bullets + education + custom sections + two prose fields) proved slow
   // enough to time out — the same lesson learned building the old
-  // CV-optimization feature: keep each DeepSeek call small and scoped to
+  // CV-optimization feature: keep each Bedrock call small and scoped to
   // one decision, and run them in parallel under a concurrency limit
   // rather than queuing them one at a time (a flat unlimited Promise.all
   // risks tripping a soft per-key concurrency ceiling on the API).
@@ -366,37 +366,48 @@ Deno.serve(async (req) => {
     }
     return { acquire, release };
   }
-  const deepseekSemaphore = createSemaphore(4);
+  const bedrockSemaphore = createSemaphore(4);
 
-  async function callDeepSeek(
+  // Calls Nemotron (NVIDIA) on AWS Bedrock in eu-west-2 (London), via
+  // Bedrock's OpenAI-compatible Chat Completions endpoint — same
+  // messages-in/choices-out shape as the DeepSeek call this replaced, just
+  // a different host and a long-term Bedrock API key as a bearer token
+  // (no AWS request signing needed). `response_format: json_object`
+  // support isn't confirmed for this model on this endpoint, so it's
+  // deliberately omitted rather than risking a hard error on every call —
+  // every prompt already explicitly asks for JSON in its own text, and the
+  // JSON.parse below already fails safe (returns null) if that's ever not
+  // honored, same as it always has.
+  async function callBedrock(
     systemPrompt: string,
     userPrompt: string,
   ): Promise<any> {
-    await deepseekSemaphore.acquire();
+    await bedrockSemaphore.acquire();
     try {
-      const response = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${Deno.env.get('DEEPSEEK_API_KEY')}`,
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        'https://bedrock-runtime.eu-west-2.amazonaws.com/openai/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${Deno.env.get('BEDROCK_API_KEY')}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'nvidia.nemotron-super-3-120b',
+            max_completion_tokens: 2048,
+            temperature: 0,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+          }),
+          signal: AbortSignal.timeout(45000),
         },
-        body: JSON.stringify({
-          model: 'deepseek-v4-pro',
-          thinking: { type: 'disabled' },
-          response_format: { type: 'json_object' },
-          max_tokens: 2048,
-          temperature: 0,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-        }),
-        signal: AbortSignal.timeout(45000),
-      });
+      );
 
       if (!response.ok) {
         const detail = await response.text();
-        console.log('[build-cv] DeepSeek call failed:', detail);
+        console.log('[build-cv] Bedrock call failed:', detail);
         return null;
       }
 
@@ -404,10 +415,10 @@ Deno.serve(async (req) => {
       const content = result.choices?.[0]?.message?.content;
       return content ? JSON.parse(content) : null;
     } catch (err) {
-      console.log('[build-cv] DeepSeek call failed:', err);
+      console.log('[build-cv] Bedrock call failed:', err);
       return null;
     } finally {
-      deepseekSemaphore.release();
+      bedrockSemaphore.release();
     }
   }
 
@@ -448,7 +459,7 @@ Deno.serve(async (req) => {
   if (skills.length > 0) {
     tasks.push(
       (async () => {
-        const res = await callDeepSeek(
+        const res = await callBedrock(
           'Given a job and a candidate\'s list of skills (id, text), decide ' +
             'which to include on a tailored CV for this job and in what order. ' +
             'Include a skill if it connects — even tangentially or ' +
@@ -489,7 +500,7 @@ Deno.serve(async (req) => {
   // than silently building a CV that under-represents a real match.
   tasks.push(
     (async () => {
-      const res = await callDeepSeek(
+      const res = await callBedrock(
         'Given a job description and a candidate\'s existing list of ' +
           'skills, identify specific, concrete skills the job description ' +
           'explicitly names or clearly requires (named tools, technologies, ' +
@@ -522,7 +533,7 @@ Deno.serve(async (req) => {
   if (customSections.length > 0) {
     tasks.push(
       (async () => {
-        const res = await callDeepSeek(
+        const res = await callBedrock(
           'Given a job and a list of CV custom sections (id, heading), ' +
             'choose which are relevant to this job and order them by ' +
             'relevance. Never invent an id. Respond with JSON: ' +
@@ -551,7 +562,7 @@ Deno.serve(async (req) => {
           employer: e.employer,
         })),
       };
-      const res = await callDeepSeek(
+      const res = await callBedrock(
         'Write a tailored CV profile paragraph (2-4 sentences) for this ' +
           "specific job, based on the candidate's seed paragraph and real " +
           'skills/roles given. Do not claim skills or experience not ' +
@@ -579,7 +590,7 @@ Deno.serve(async (req) => {
         );
 
         if (!rewordForMatch) {
-          const res = await callDeepSeek(
+          const res = await callBedrock(
             'Given a job and a list of achievement/responsibility bullets ' +
               '(id, text) for one role on a candidate\'s CV, choose which are ' +
               'relevant to this job and order them by relevance. Keep enough ' +
@@ -601,7 +612,7 @@ Deno.serve(async (req) => {
         // Reword variant: same selection/ordering task, but for each
         // selected bullet also returns its text — copied unchanged unless a
         // light wording tweak genuinely aligns it with the job description.
-        const res = await callDeepSeek(
+        const res = await callBedrock(
           'Given a job and a list of achievement/responsibility bullets ' +
             '(id, text) for one role on a candidate\'s CV, choose which are ' +
             'relevant to this job and order them by relevance. Keep enough ' +
@@ -649,7 +660,7 @@ Deno.serve(async (req) => {
 
     tasks.push(
       (async () => {
-        const res = await callDeepSeek(
+        const res = await callBedrock(
           'Summarize this role in one dense sentence for a CV\'s compacted ' +
             '"earlier career" section, grounded only in the bullets given — ' +
             'no invented detail.' +
@@ -671,7 +682,7 @@ Deno.serve(async (req) => {
 
     tasks.push(
       (async () => {
-        const res = await callDeepSeek(
+        const res = await callBedrock(
           'Given a job and a list of qualification detail lines (id, text) ' +
             'for one education entry, choose which are relevant to this job ' +
             'and order them by relevance. Never invent an id. Respond with ' +
@@ -697,7 +708,7 @@ Deno.serve(async (req) => {
 
     tasks.push(
       (async () => {
-        const res = await callDeepSeek(
+        const res = await callBedrock(
           'Given a job and a list of detail lines (id, text) for one ' +
             'certification, choose which are relevant to this job and order ' +
             'them by relevance. Never invent an id. Respond with JSON: ' +

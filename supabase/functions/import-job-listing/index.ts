@@ -110,6 +110,74 @@ async function fetchJobPostingJsonLd(url: string): Promise<string | null> {
   }
 }
 
+// Some ATS platforms don't render their job content server-side at all —
+// notably Greenhouse's embeddable "job board" widget
+// (<script src="https://boards.greenhouse.io/embed/job_board/js?for=TOKEN">
+// alongside <div id="grnhse_app">), which renders a single job into that
+// div entirely client-side, keyed off the page's own ?gh_jid= query param,
+// by making its own API call. Neither a plain fetch nor Jina's reader proxy
+// (even with browser rendering) sees that content: the proxy renders the
+// surrounding host page but doesn't execute/wait for this specific widget's
+// own async fetch, so "readable" text extracted from pages using it comes
+// back as just site chrome (nav/footer) with no job content — and
+// Greenhouse's own canonical board URL for the job typically redirects
+// straight back to this same embedding page, so there's no alternate
+// server-rendered page to fall back to either. Greenhouse's job data is
+// public via its own Boards API though, keyed by the same token + job id
+// used by the embed, so detect this pattern and go straight to the source.
+async function fetchGreenhouseEmbedJob(url: string): Promise<string | null> {
+  try {
+    const jobId = new URL(url).searchParams.get('gh_jid');
+    if (!jobId) return null;
+
+    const pageResponse = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; JobSearch365/1.0)' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!pageResponse.ok) return null;
+
+    const html = await pageResponse.text();
+    const tokenMatch = html.match(
+      /boards\.greenhouse\.io\/embed\/job_board\/js\?for=([a-zA-Z0-9_-]+)/,
+    );
+    if (!tokenMatch) return null;
+
+    const apiResponse = await fetch(
+      `https://boards-api.greenhouse.io/v1/boards/${tokenMatch[1]}/jobs/${jobId}`,
+      { signal: AbortSignal.timeout(15000) },
+    );
+    if (!apiResponse.ok) return null;
+
+    const job = await apiResponse.json();
+    if (!job?.title) return null;
+
+    // The API's `content` field is itself HTML, but the whole thing comes
+    // back entity-encoded on top of that (e.g. "&lt;div&gt;" rather than
+    // "<div>") — decode once to get real HTML, strip tags, then decode
+    // again for entities that were part of the actual text (e.g. "&amp;").
+    const decodeEntities = (s: string) =>
+      s
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, '&');
+    let description = decodeEntities(String(job.content ?? ''));
+    description = description.replace(/<[^>]+>/g, ' ');
+    description = decodeEntities(description).replace(/\s+/g, ' ').trim();
+
+    return JSON.stringify({
+      job_title: job.title,
+      employer: job.company_name,
+      location: job.location?.name ?? null,
+      description,
+    }).slice(0, 8000);
+  } catch (err) {
+    console.log('[import-job-listing] Greenhouse embed fetch failed (non-fatal):', err);
+    return null;
+  }
+}
+
 const EXTRACTION_KEYS = [
   'job_title',
   'employer',
@@ -166,20 +234,26 @@ Deno.serve(async (req) => {
 
   let pageText: string;
   let jobPostingJsonLd: string | null;
+  let greenhouseEmbedJob: string | null;
   try {
     console.log('[import-job-listing] fetching listing:', url);
-    [pageText, jobPostingJsonLd] = await Promise.all([
+    [pageText, jobPostingJsonLd, greenhouseEmbedJob] = await Promise.all([
       fetchListingTextWithRetry(url),
       fetchJobPostingJsonLd(url),
+      fetchGreenhouseEmbedJob(url),
     ]);
     console.log('[import-job-listing] extracted page text length:', pageText.length);
     console.log('[import-job-listing] JobPosting JSON-LD found:', !!jobPostingJsonLd);
+    console.log('[import-job-listing] Greenhouse embed job found:', !!greenhouseEmbedJob);
   } catch (err) {
     console.log('[import-job-listing] listing fetch failed:', err);
     return jsonResponse({ error: 'Failed to fetch that job listing' }, 502);
   }
 
-  if (pageText.length < MIN_USABLE_PAGE_TEXT_LENGTH) {
+  // A Greenhouse embed hit is the real job content straight from the
+  // source, even when the page itself rendered as near-empty chrome — only
+  // bail out for unreadable pages when neither source came through.
+  if (pageText.length < MIN_USABLE_PAGE_TEXT_LENGTH && !greenhouseEmbedJob) {
     console.log('[import-job-listing] page text too short, likely unreadable:', pageText);
     return jsonResponse(
       { error: "Couldn't read enough from that listing to extract details." },
@@ -206,32 +280,49 @@ Deno.serve(async (req) => {
     "it does NOT mean fully remote, and many hybrid roles are tagged that way " +
     "too — never map TELECOMMUTE to remote by itself; fall back to it only " +
     'when nothing clearer is available, and prefer hybrid over remote in that ' +
-    'case if the page mentions any office/on-site presence at all. ' +
+    'case if the page mentions any office/on-site presence at all. If a ' +
+    "block of structured job data from Greenhouse's job board API is " +
+    'included, it is the authoritative source for this listing (the page ' +
+    "itself is a client-side embed with no visible job content) — use its " +
+    'job_title, employer, and location fields directly, and extract ' +
+    'salary/employment_type/location_type from its description text. ' +
     'Example json shape: {"job_title": "Software Engineer", "employer": ' +
     '"Acme Ltd", "salary_min": 45000, "salary_max": 55000, ' +
     '"salary_currency": "GBP", "salary_type": "annual", "employment_type": ' +
     '"full_time", "location_type": "hybrid", "location": "London", ' +
     '"description": "..."}';
 
-  const userContent = jobPostingJsonLd
-    ? `Structured JobPosting data (from the page's own SEO metadata):\n${jobPostingJsonLd}\n\nWebpage text:\n${pageText}`
-    : `Webpage text:\n${pageText}`;
+  const userContent = greenhouseEmbedJob
+    ? `Structured job data (from Greenhouse's job board API, authoritative):\n${greenhouseEmbedJob}` +
+      (jobPostingJsonLd
+        ? `\n\nStructured JobPosting data (from the page's own SEO metadata):\n${jobPostingJsonLd}`
+        : '')
+    : jobPostingJsonLd
+      ? `Structured JobPosting data (from the page's own SEO metadata):\n${jobPostingJsonLd}\n\nWebpage text:\n${pageText}`
+      : `Webpage text:\n${pageText}`;
 
   try {
-    console.log('[import-job-listing] calling DeepSeek');
-    const deepseekResponse = await fetch(
-      'https://api.deepseek.com/chat/completions',
+    // Nemotron (NVIDIA) on AWS Bedrock, eu-west-2 (London), via Bedrock's
+    // OpenAI-compatible Chat Completions endpoint — same messages-in/
+    // choices-out shape DeepSeek used, just a different host and a
+    // long-term Bedrock API key as a bearer token (no AWS request signing
+    // needed). `response_format: json_object` support isn't confirmed for
+    // this model on this endpoint, so it's deliberately omitted rather than
+    // risking a hard error on every call — the prompt already explicitly
+    // asks for JSON in its own text, and the JSON.parse below already
+    // fails safe if that's ever not honored, same as it always has.
+    console.log('[import-job-listing] calling Bedrock');
+    const bedrockResponse = await fetch(
+      'https://bedrock-runtime.eu-west-2.amazonaws.com/openai/v1/chat/completions',
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${Deno.env.get('DEEPSEEK_API_KEY')}`,
+          Authorization: `Bearer ${Deno.env.get('BEDROCK_API_KEY')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'deepseek-v4-pro',
-          thinking: { type: 'disabled' },
-          response_format: { type: 'json_object' },
-          max_tokens: 4096,
+          model: 'nvidia.nemotron-super-3-120b',
+          max_completion_tokens: 4096,
           // Keep extraction consistent run-to-run rather than creative.
           temperature: 0,
           messages: [
@@ -243,19 +334,19 @@ Deno.serve(async (req) => {
       },
     );
 
-    console.log('[import-job-listing] DeepSeek responded:', deepseekResponse.status);
+    console.log('[import-job-listing] Bedrock responded:', bedrockResponse.status);
 
-    if (!deepseekResponse.ok) {
-      const detail = await deepseekResponse.text();
-      console.log('[import-job-listing] DeepSeek call failed:', detail);
+    if (!bedrockResponse.ok) {
+      const detail = await bedrockResponse.text();
+      console.log('[import-job-listing] Bedrock call failed:', detail);
       return jsonResponse({ error: 'Failed to read that job listing' }, 502);
     }
 
-    const result = await deepseekResponse.json();
+    const result = await bedrockResponse.json();
     const content = result.choices?.[0]?.message?.content;
 
     if (!content) {
-      console.log('[import-job-listing] no content in DeepSeek response:', JSON.stringify(result));
+      console.log('[import-job-listing] no content in Bedrock response:', JSON.stringify(result));
       return jsonResponse({ error: 'Failed to read that job listing' }, 502);
     }
 
@@ -263,7 +354,7 @@ Deno.serve(async (req) => {
     try {
       extracted = JSON.parse(content);
     } catch (err) {
-      console.log('[import-job-listing] failed to parse DeepSeek JSON:', content);
+      console.log('[import-job-listing] failed to parse Bedrock JSON:', content);
       return jsonResponse({ error: 'Failed to read that job listing' }, 502);
     }
 
@@ -276,7 +367,7 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ job }, 200);
   } catch (err) {
-    console.log('[import-job-listing] DeepSeek call failed:', err);
+    console.log('[import-job-listing] Bedrock call failed:', err);
     return jsonResponse({ error: 'Failed to read that job listing' }, 502);
   }
 });

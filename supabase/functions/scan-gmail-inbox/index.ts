@@ -372,19 +372,26 @@ Deno.serve(async (req) => {
   }[] = [];
 
   try {
-    const deepseekResponse = await fetch(
-      'https://api.deepseek.com/chat/completions',
+    // Nemotron (NVIDIA) on AWS Bedrock, eu-west-2 (London), via Bedrock's
+    // OpenAI-compatible Chat Completions endpoint — same messages-in/
+    // choices-out shape DeepSeek used, just a different host and a
+    // long-term Bedrock API key as a bearer token (no AWS request signing
+    // needed). `response_format: json_object` support isn't confirmed for
+    // this model on this endpoint, so it's deliberately omitted rather than
+    // risking a hard error on every call — the prompt already explicitly
+    // asks for JSON in its own text, and the JSON.parse below already
+    // fails safe if that's ever not honored, same as it always has.
+    const bedrockResponse = await fetch(
+      'https://bedrock-runtime.eu-west-2.amazonaws.com/openai/v1/chat/completions',
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${Deno.env.get('DEEPSEEK_API_KEY')}`,
+          Authorization: `Bearer ${Deno.env.get('BEDROCK_API_KEY')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'deepseek-v4-pro',
-          thinking: { type: 'disabled' },
-          response_format: { type: 'json_object' },
-          max_tokens: 4096,
+          model: 'nvidia.nemotron-super-3-120b',
+          max_completion_tokens: 4096,
           temperature: 0,
           messages: [
             { role: 'system', content: systemPrompt },
@@ -395,18 +402,18 @@ Deno.serve(async (req) => {
       },
     );
 
-    if (!deepseekResponse.ok) {
-      const detail = await deepseekResponse.text();
-      console.log('[scan-gmail-inbox] DeepSeek call failed:', detail);
+    if (!bedrockResponse.ok) {
+      const detail = await bedrockResponse.text();
+      console.log('[scan-gmail-inbox] Bedrock call failed:', detail);
       return jsonResponse({ error: 'Failed to classify emails' }, 502);
     }
 
-    const result = await deepseekResponse.json();
+    const result = await bedrockResponse.json();
     const content = result.choices?.[0]?.message?.content;
     const parsed = content ? JSON.parse(content) : null;
     classifications = Array.isArray(parsed?.results) ? parsed.results : [];
   } catch (err) {
-    console.log('[scan-gmail-inbox] DeepSeek call failed:', err);
+    console.log('[scan-gmail-inbox] Bedrock call failed:', err);
     return jsonResponse({ error: 'Failed to classify emails' }, 502);
   }
 

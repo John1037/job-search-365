@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
 
   console.log('[generate-cover-letter] CV downloaded, bytes:', cvBlob.size);
 
-  // DeepSeek only accepts plain text, unlike Claude's native PDF input, so
+  // Nemotron only accepts plain text, unlike Claude's native PDF input, so
   // the CV has to be extracted to text server-side before it can be sent.
   let cvText: string;
   try {
@@ -132,22 +132,24 @@ Deno.serve(async (req) => {
     `Applicant's CV:\n${cvText}`;
 
   try {
-    console.log('[generate-cover-letter] calling DeepSeek');
-    const deepseekResponse = await fetch(
-      'https://api.deepseek.com/chat/completions',
+    // Nemotron (NVIDIA) on AWS Bedrock, eu-west-2 (London), via Bedrock's
+    // OpenAI-compatible Chat Completions endpoint — same messages-in/
+    // choices-out shape DeepSeek used, just a different host and a
+    // long-term Bedrock API key as a bearer token (no AWS request signing
+    // needed). This call was never asking for JSON (a cover letter draft
+    // is plain text), so there's no response_format consideration here.
+    console.log('[generate-cover-letter] calling Bedrock');
+    const bedrockResponse = await fetch(
+      'https://bedrock-runtime.eu-west-2.amazonaws.com/openai/v1/chat/completions',
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${Deno.env.get('DEEPSEEK_API_KEY')}`,
+          Authorization: `Bearer ${Deno.env.get('BEDROCK_API_KEY')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'deepseek-v4-pro',
-          // deepseek-v4-pro reasons by default, spending tokens on a hidden
-          // pass before the real answer — not needed for a cover letter, so
-          // turn it off rather than just budgeting around it.
-          thinking: { type: 'disabled' },
-          max_tokens: 2048,
+          model: 'nvidia.nemotron-super-3-120b',
+          max_completion_tokens: 2048,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
@@ -157,25 +159,25 @@ Deno.serve(async (req) => {
       },
     );
 
-    console.log('[generate-cover-letter] DeepSeek responded:', deepseekResponse.status);
+    console.log('[generate-cover-letter] Bedrock responded:', bedrockResponse.status);
 
-    if (!deepseekResponse.ok) {
-      const detail = await deepseekResponse.text();
-      console.log('[generate-cover-letter] DeepSeek call failed:', detail);
+    if (!bedrockResponse.ok) {
+      const detail = await bedrockResponse.text();
+      console.log('[generate-cover-letter] Bedrock call failed:', detail);
       return jsonResponse({ error: 'Failed to generate cover letter' }, 502);
     }
 
-    const result = await deepseekResponse.json();
+    const result = await bedrockResponse.json();
     const draft = result.choices?.[0]?.message?.content;
 
     if (!draft) {
-      console.log('[generate-cover-letter] no draft in DeepSeek response:', JSON.stringify(result));
+      console.log('[generate-cover-letter] no draft in Bedrock response:', JSON.stringify(result));
       return jsonResponse({ error: 'Failed to generate cover letter' }, 502);
     }
 
     return jsonResponse({ draft }, 200);
   } catch (err) {
-    console.log('[generate-cover-letter] DeepSeek call failed:', err);
+    console.log('[generate-cover-letter] Bedrock call failed:', err);
     return jsonResponse({ error: 'Failed to generate cover letter' }, 502);
   }
 });

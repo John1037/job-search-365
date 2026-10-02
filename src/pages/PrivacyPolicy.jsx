@@ -63,8 +63,9 @@ function PrivacyPolicy() {
             job details from a posting URL, and matching Gmail messages to
             your tracked applications. Content you submit or connect for
             these features (job descriptions, CV text, email metadata and
-            snippets) is sent to our AI provider, DeepSeek, solely to
-            perform the specific feature you requested.
+            snippets) is sent to our AI provider, Amazon Bedrock, hosted in
+            AWS's London (UK) region, solely to perform the specific
+            feature you requested.
           </li>
           <li>
             To send account-related email (signup confirmation, password
@@ -110,10 +111,10 @@ function PrivacyPolicy() {
             read or write your own data.
           </li>
           <li>
-            <strong>DeepSeek</strong> — processes content you submit to the
-            AI-assisted features (cover letters, CV optimization, job
-            import, Gmail matching) via their API, solely to generate the
-            result for that feature.
+            <strong>Amazon Bedrock</strong> (AWS, London/UK region) —
+            processes content you submit to the AI-assisted features
+            (cover letters, CV optimization, job import, Gmail matching)
+            via their API, solely to generate the result for that feature.
           </li>
           <li>
             <strong>Resend</strong> — delivers account-related

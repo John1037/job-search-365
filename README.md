@@ -97,9 +97,12 @@ Live at [jobsearch365.com](https://jobsearch365.com).
   (avatars, documents), and Edge Functions (Deno) for account deletion,
   email-change notifications, and several LLM-backed features (job import,
   CV import, cover letter drafting, CV building, email-to-job matching).
-- **AI:** [DeepSeek](https://www.deepseek.com) for job-listing extraction,
-  CV import extraction, cover letter drafting, CV building, and
-  email-to-job matching (many small, targeted calls per operation rather
+- **AI:** [Amazon Bedrock](https://aws.amazon.com/bedrock/) (NVIDIA Nemotron
+  3 Super, `eu-west-2`/London, for UK/EU data residency) for job-listing
+  extraction, CV import extraction, cover letter drafting, CV building, and
+  email-to-job matching — via Bedrock's OpenAI-compatible Chat Completions
+  endpoint, authenticated with a long-term Bedrock API key rather than
+  AWS-signed requests (many small, targeted calls per operation rather
   than one large one, run concurrently under a shared limiter). PDF
   text/layout extraction via [`unpdf`](https://github.com/unjs/unpdf); PDF
   generation via [`jsPDF`](https://github.com/parallax/jsPDF).
@@ -178,17 +181,18 @@ Environment variables (see `.env.example`):
 
 The AI-backed Edge Functions (`import-job-listing`, `import-cv`,
 `generate-cover-letter`, `build-cv`, `scan-gmail-inbox`) need a
-`DEEPSEEK_API_KEY` — this is a **Supabase Edge Function secret**, not a
-Vite/frontend env var, so it never goes in `.env`. Set it with
-`supabase secrets set DEEPSEEK_API_KEY=...` for a deployed project, or in a
-local, gitignored `supabase/.env` for `supabase functions serve`.
+`BEDROCK_API_KEY` (a long-term Amazon Bedrock API key) — this is a
+**Supabase Edge Function secret**, not a Vite/frontend env var, so it
+never goes in `.env`. Set it with `supabase secrets set
+BEDROCK_API_KEY=...` for a deployed project, or in a local, gitignored
+`supabase/.env` for `supabase functions serve`.
 
 Gmail inbox scanning additionally needs a Google Cloud OAuth 2.0 Client
 (Web application, `gmail.readonly` scope, authorized redirect URI
 `<your origin>/inbox/callback`). The Client ID is not secret and goes in
 `VITE_GOOGLE_CLIENT_ID` above; the Client Secret is a Supabase Edge
 Function secret (`GOOGLE_CLIENT_SECRET`), same pattern as
-`DEEPSEEK_API_KEY`. While the Google OAuth consent screen is in "Testing"
+`BEDROCK_API_KEY`. While the Google OAuth consent screen is in "Testing"
 mode (fine for personal use, no Google verification needed), granted
 refresh tokens expire after 7 days, so reconnecting periodically is
 expected.

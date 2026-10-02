@@ -28,7 +28,7 @@ function base64ToBytes(base64: string): Uint8Array {
 // --- PDF extraction -------------------------------------------------------
 // Adapted from the old optimize-cv function's positioned-text approach, but
 // scoped down for extraction rather than exact reproduction: we don't need
-// to preserve original wording, just give DeepSeek clean, well-ordered text
+// to preserve original wording, just give Bedrock clean, well-ordered text
 // with light heading/bullet markers. The one thing we DO need to get right
 // is refusing to guess on a layout we can't read reliably — see
 // detectColumnLayout below.
@@ -121,7 +121,7 @@ function isBoldFont(fontFamily: string): boolean {
 const BULLET_MARKER = /^[•\-*]\s*/;
 
 // Lightly marks up a heading/sub-heading/bullet line (## / ### / -) so
-// DeepSeek has some structural signal to work with, without attempting to
+// Bedrock has some structural signal to work with, without attempting to
 // exactly reconstruct sections the way the old reorder feature needed to.
 function markLine(line: Line, modalSize: number): string {
   const words = wordCount(line.text);
@@ -349,7 +349,7 @@ async function extractDocxText(
   return { ok: true, text };
 }
 
-// --- DeepSeek extraction ----------------------------------------------------
+// --- Bedrock extraction ------------------------------------------------
 
 const EXTRACTION_SYSTEM_PROMPT =
   "Extract structured CV/resume data from raw text extracted from a candidate's " +
@@ -374,31 +374,42 @@ const EXTRACTION_SYSTEM_PROMPT =
   '"end_month": number|null, "is_current": boolean, "items": string[]}]' +
   '}. Every array is required (use an empty array if nothing of that kind is present).';
 
-async function callDeepSeek(systemPrompt: string, userPrompt: string): Promise<any> {
+// Calls Nemotron (NVIDIA) on AWS Bedrock in eu-west-2 (London), via
+// Bedrock's OpenAI-compatible Chat Completions endpoint — same
+// messages-in/choices-out shape as the DeepSeek call this replaced, just a
+// different host and a long-term Bedrock API key as a bearer token (no AWS
+// request signing needed). `response_format: json_object` support isn't
+// confirmed for this model on this endpoint, so it's deliberately omitted
+// rather than risking a hard error on every call — the prompt already
+// explicitly asks for JSON in its own text, and the JSON.parse below
+// already fails safe (returns null) if that's ever not honored, same as it
+// always has.
+async function callBedrock(systemPrompt: string, userPrompt: string): Promise<any> {
   try {
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${Deno.env.get('DEEPSEEK_API_KEY')}`,
-        'Content-Type': 'application/json',
+    const response = await fetch(
+      'https://bedrock-runtime.eu-west-2.amazonaws.com/openai/v1/chat/completions',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${Deno.env.get('BEDROCK_API_KEY')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'nvidia.nemotron-super-3-120b',
+          max_completion_tokens: 3500,
+          temperature: 0,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+        }),
+        signal: AbortSignal.timeout(60000),
       },
-      body: JSON.stringify({
-        model: 'deepseek-v4-pro',
-        thinking: { type: 'disabled' },
-        response_format: { type: 'json_object' },
-        max_tokens: 3500,
-        temperature: 0,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-      }),
-      signal: AbortSignal.timeout(60000),
-    });
+    );
 
     if (!response.ok) {
       const detail = await response.text();
-      console.log('[import-cv] DeepSeek call failed:', detail);
+      console.log('[import-cv] Bedrock call failed:', detail);
       return null;
     }
 
@@ -406,7 +417,7 @@ async function callDeepSeek(systemPrompt: string, userPrompt: string): Promise<a
     const content = result.choices?.[0]?.message?.content;
     return content ? JSON.parse(content) : null;
   } catch (err) {
-    console.log('[import-cv] DeepSeek call failed:', err);
+    console.log('[import-cv] Bedrock call failed:', err);
     return null;
   }
 }
@@ -549,7 +560,7 @@ Deno.serve(async (req) => {
   // request to the model.
   const text = extraction.text.slice(0, 20000);
 
-  const res = await callDeepSeek(EXTRACTION_SYSTEM_PROMPT, `CV text:\n${text}`);
+  const res = await callBedrock(EXTRACTION_SYSTEM_PROMPT, `CV text:\n${text}`);
 
   if (!res) {
     return jsonResponse(

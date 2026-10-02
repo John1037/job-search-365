@@ -72,8 +72,9 @@ function TermsOfService() {
 
         <h2>Third-party services</h2>
         <p>
-          The Service relies on third-party providers — Google, DeepSeek,
-          Resend, Cloudflare, and Supabase — to operate. Their own terms
+          The Service relies on third-party providers — Google, AWS
+          (Amazon Bedrock), Resend, Cloudflare, and Supabase — to operate.
+          Their own terms
           and availability may affect the Service, and we're not
           responsible for their conduct.
         </p>
