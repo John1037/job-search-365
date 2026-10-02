@@ -140,7 +140,7 @@ Deno.serve(async (req) => {
     // is plain text), so there's no response_format consideration here.
     console.log('[generate-cover-letter] calling Bedrock');
     const bedrockResponse = await fetch(
-      'https://bedrock-runtime.eu-west-2.amazonaws.com/openai/v1/chat/completions',
+      'https://bedrock-mantle.eu-west-2.api.aws/v1/chat/completions',
       {
         method: 'POST',
         headers: {

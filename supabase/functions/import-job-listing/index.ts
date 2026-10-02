@@ -313,7 +313,7 @@ Deno.serve(async (req) => {
     // fails safe if that's ever not honored, same as it always has.
     console.log('[import-job-listing] calling Bedrock');
     const bedrockResponse = await fetch(
-      'https://bedrock-runtime.eu-west-2.amazonaws.com/openai/v1/chat/completions',
+      'https://bedrock-mantle.eu-west-2.api.aws/v1/chat/completions',
       {
         method: 'POST',
         headers: {

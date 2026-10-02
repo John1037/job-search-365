@@ -387,7 +387,7 @@ const EXTRACTION_SYSTEM_PROMPT =
 async function callBedrock(systemPrompt: string, userPrompt: string): Promise<any> {
   try {
     const response = await fetch(
-      'https://bedrock-runtime.eu-west-2.amazonaws.com/openai/v1/chat/completions',
+      'https://bedrock-mantle.eu-west-2.api.aws/v1/chat/completions',
       {
         method: 'POST',
         headers: {

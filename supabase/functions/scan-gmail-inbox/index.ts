@@ -382,7 +382,7 @@ Deno.serve(async (req) => {
     // asks for JSON in its own text, and the JSON.parse below already
     // fails safe if that's ever not honored, same as it always has.
     const bedrockResponse = await fetch(
-      'https://bedrock-runtime.eu-west-2.amazonaws.com/openai/v1/chat/completions',
+      'https://bedrock-mantle.eu-west-2.api.aws/v1/chat/completions',
       {
         method: 'POST',
         headers: {
