@@ -487,7 +487,21 @@ Deno.serve(async (req) => {
         if (ids) {
           const validIds = new Set(skills.map((s) => s.id));
           const filtered = ids.filter((id: string) => validIds.has(id));
-          if (filtered.length > 0) selectedSkillIds = filtered;
+          if (filtered.length > 0) {
+            selectedSkillIds = filtered;
+          } else {
+            console.log(
+              '[build-cv] skill selection fell back to all skills: ' +
+                'no returned id matched the library. Raw response:',
+              JSON.stringify(res),
+            );
+          }
+        } else {
+          console.log(
+            '[build-cv] skill selection fell back to all skills: ' +
+              'no usable skill_ids array in response. Raw response:',
+            JSON.stringify(res),
+          );
         }
       })(),
     );
@@ -526,6 +540,12 @@ Deno.serve(async (req) => {
           .filter((s: unknown): s is string => typeof s === 'string' && s.trim().length > 0)
           .map((s: string) => s.trim())
           .slice(0, 8);
+      } else {
+        console.log(
+          '[build-cv] missing-skills check got no usable missing_skills ' +
+            'array, skipping suggestions. Raw response:',
+          JSON.stringify(res),
+        );
       }
     })(),
   );
@@ -546,7 +566,21 @@ Deno.serve(async (req) => {
         if (ids) {
           const validIds = new Set(customSections.map((s) => s.id));
           const filtered = ids.filter((id: string) => validIds.has(id));
-          if (filtered.length > 0) selectedCustomSectionIds = filtered;
+          if (filtered.length > 0) {
+            selectedCustomSectionIds = filtered;
+          } else {
+            console.log(
+              '[build-cv] custom section selection fell back to all ' +
+                'sections: no returned id matched. Raw response:',
+              JSON.stringify(res),
+            );
+          }
+        } else {
+          console.log(
+            '[build-cv] custom section selection fell back to all ' +
+              'sections: no usable section_ids array in response. Raw response:',
+            JSON.stringify(res),
+          );
         }
       })(),
     );
@@ -574,6 +608,12 @@ Deno.serve(async (req) => {
       );
       if (typeof res?.profile_summary === 'string' && res.profile_summary.trim()) {
         profileSummary = res.profile_summary.trim();
+      } else {
+        console.log(
+          '[build-cv] profile summary generation fell back to the seed ' +
+            'paragraph: no usable profile_summary in response. Raw response:',
+          JSON.stringify(res),
+        );
       }
     })(),
   );
@@ -602,6 +642,13 @@ Deno.serve(async (req) => {
           );
           const ids = Array.isArray(res?.bullet_ids) ? res.bullet_ids : null;
           const filtered = ids ? ids.filter((id: string) => validIds.has(id)) : [];
+          if (filtered.length === 0) {
+            console.log(
+              `[build-cv] bullet selection for "${entry.job_title}" fell ` +
+                'back to all bullets: no usable bullet_ids in response. Raw response:',
+              JSON.stringify(res),
+            );
+          }
           bulletSelectionByExperience.set(
             entry.id,
             filtered.length > 0 ? filtered : bullets.map((b) => b.id),
@@ -648,6 +695,12 @@ Deno.serve(async (req) => {
             new Map(filteredItems.map((it) => [it.id, it.text.trim()])),
           );
         } else {
+          console.log(
+            `[build-cv] reworded bullet selection for "${entry.job_title}" ` +
+              'fell back to all bullets, unreworded: no usable bullets in ' +
+              'response. Raw response:',
+            JSON.stringify(res),
+          );
           bulletSelectionByExperience.set(entry.id, bullets.map((b) => b.id));
         }
       })(),
@@ -671,6 +724,12 @@ Deno.serve(async (req) => {
         );
         if (typeof res?.summary === 'string' && res.summary.trim()) {
           summaryByExperience.set(entry.id, res.summary.trim());
+        } else {
+          console.log(
+            `[build-cv] earlier-career summary for "${entry.job_title}" ` +
+              'got no usable summary in response. Raw response:',
+            JSON.stringify(res),
+          );
         }
       })(),
     );
@@ -694,6 +753,13 @@ Deno.serve(async (req) => {
         const ids = Array.isArray(res?.item_ids) ? res.item_ids : null;
         const validIds = new Set(items.map((it) => it.id));
         const filtered = ids ? ids.filter((id: string) => validIds.has(id)) : [];
+        if (filtered.length === 0) {
+          console.log(
+            `[build-cv] education item selection for "${entry.establishment}" ` +
+              'fell back to all items: no usable item_ids in response. Raw response:',
+            JSON.stringify(res),
+          );
+        }
         itemSelectionByEducation.set(
           entry.id,
           filtered.length > 0 ? filtered : items.map((it) => it.id),
@@ -719,6 +785,13 @@ Deno.serve(async (req) => {
         const ids = Array.isArray(res?.item_ids) ? res.item_ids : null;
         const validIds = new Set(items.map((it) => it.id));
         const filtered = ids ? ids.filter((id: string) => validIds.has(id)) : [];
+        if (filtered.length === 0) {
+          console.log(
+            `[build-cv] certification item selection for "${entry.title}" ` +
+              'fell back to all items: no usable item_ids in response. Raw response:',
+            JSON.stringify(res),
+          );
+        }
         itemSelectionByCertification.set(
           entry.id,
           filtered.length > 0 ? filtered : items.map((it) => it.id),
