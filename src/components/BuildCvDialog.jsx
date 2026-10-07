@@ -125,6 +125,12 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
   const [selectedNewSkills, setSelectedNewSkills] = useState(() => new Set());
   const [addingSuggestedSkills, setAddingSuggestedSkills] = useState(false);
 
+  // Plain-language notices from build-cv when an AI selection step fell
+  // back to a safe default (e.g. "included everything") instead of a real
+  // tailored choice — surfaced so the user knows to double-check that part
+  // of the review, or retry the build, rather than silently trusting it.
+  const [fallbackWarnings, setFallbackWarnings] = useState([]);
+
   const template = getTemplate(templateId);
 
   useEffect(() => {
@@ -147,6 +153,7 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
     setNewSkillText('');
     setSuggestedNewSkills([]);
     setSelectedNewSkills(new Set());
+    setFallbackWarnings([]);
   }, [open]);
 
   // The full skills library, independent of whatever build-cv selected —
@@ -209,6 +216,9 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
     }
 
     setCv(data.cv);
+    setFallbackWarnings(
+      Array.isArray(data.fallback_warnings) ? data.fallback_warnings : [],
+    );
 
     const suggestions = Array.isArray(data.suggested_new_skills)
       ? data.suggested_new_skills
@@ -704,6 +714,20 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
         )}
 
         {error && <p className="form-error">{error}</p>}
+
+        {!loading && fallbackWarnings.length > 0 && (
+          <div className="build-cv-warnings">
+            <p>
+              Some AI selections didn't come through as expected — worth a
+              manual check, or retry the build:
+            </p>
+            <ul>
+              {fallbackWarnings.map((message, i) => (
+                <li key={i}>{message}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {stage === 'suggested-skills' && !loading && (
           <div className="suggested-skills-step">

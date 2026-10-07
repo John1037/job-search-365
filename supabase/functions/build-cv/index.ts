@@ -453,6 +453,11 @@ Deno.serve(async (req) => {
   const summaryByExperience = new Map<string, string>();
   const itemSelectionByEducation = new Map<string, string[]>();
   const itemSelectionByCertification = new Map<string, string[]>();
+  // User-facing counterpart to the console.log calls below — short,
+  // plain-language notices surfaced in the response so the review step can
+  // flag "this part may need a manual check or a retry" rather than the
+  // fallback happening invisibly.
+  const fallbackWarnings: string[] = [];
 
   const tasks: Promise<void>[] = [];
 
@@ -495,12 +500,20 @@ Deno.serve(async (req) => {
                 'no returned id matched the library. Raw response:',
               JSON.stringify(res),
             );
+            fallbackWarnings.push(
+              "Skill selection didn't come through — all skills were " +
+                'included instead of a tailored subset.',
+            );
           }
         } else {
           console.log(
             '[build-cv] skill selection fell back to all skills: ' +
               'no usable skill_ids array in response. Raw response:',
             JSON.stringify(res),
+          );
+          fallbackWarnings.push(
+            "Skill selection didn't come through — all skills were " +
+              'included instead of a tailored subset.',
           );
         }
       })(),
@@ -574,12 +587,20 @@ Deno.serve(async (req) => {
                 'sections: no returned id matched. Raw response:',
               JSON.stringify(res),
             );
+            fallbackWarnings.push(
+              "Custom section selection didn't come through — all " +
+                'custom sections were included instead of a tailored subset.',
+            );
           }
         } else {
           console.log(
             '[build-cv] custom section selection fell back to all ' +
               'sections: no usable section_ids array in response. Raw response:',
             JSON.stringify(res),
+          );
+          fallbackWarnings.push(
+            "Custom section selection didn't come through — all " +
+              'custom sections were included instead of a tailored subset.',
           );
         }
       })(),
@@ -614,6 +635,10 @@ Deno.serve(async (req) => {
             'paragraph: no usable profile_summary in response. Raw response:',
           JSON.stringify(res),
         );
+        fallbackWarnings.push(
+          "Profile paragraph couldn't be tailored for this job — your " +
+            'saved summary was used instead, unchanged.',
+        );
       }
     })(),
   );
@@ -647,6 +672,11 @@ Deno.serve(async (req) => {
               `[build-cv] bullet selection for "${entry.job_title}" fell ` +
                 'back to all bullets: no usable bullet_ids in response. Raw response:',
               JSON.stringify(res),
+            );
+            fallbackWarnings.push(
+              `Bullet selection for "${entry.job_title}" didn't come ` +
+                'through — all bullets for that role were included instead ' +
+                'of a tailored subset.',
             );
           }
           bulletSelectionByExperience.set(
@@ -701,6 +731,11 @@ Deno.serve(async (req) => {
               'response. Raw response:',
             JSON.stringify(res),
           );
+          fallbackWarnings.push(
+            `Bullet selection/rewording for "${entry.job_title}" didn't ` +
+              'come through — all original bullets for that role were ' +
+              'included instead.',
+          );
           bulletSelectionByExperience.set(entry.id, bullets.map((b) => b.id));
         }
       })(),
@@ -730,6 +765,11 @@ Deno.serve(async (req) => {
               'got no usable summary in response. Raw response:',
             JSON.stringify(res),
           );
+          fallbackWarnings.push(
+            `Earlier-career summary for "${entry.job_title}" couldn't be ` +
+              'generated — its bullets were joined as plain text instead ' +
+              'of a condensed sentence.',
+          );
         }
       })(),
     );
@@ -758,6 +798,11 @@ Deno.serve(async (req) => {
             `[build-cv] education item selection for "${entry.establishment}" ` +
               'fell back to all items: no usable item_ids in response. Raw response:',
             JSON.stringify(res),
+          );
+          fallbackWarnings.push(
+            `Detail selection for "${entry.establishment}" didn't come ` +
+              'through — all details for that entry were included instead ' +
+              'of a tailored subset.',
           );
         }
         itemSelectionByEducation.set(
@@ -790,6 +835,11 @@ Deno.serve(async (req) => {
             `[build-cv] certification item selection for "${entry.title}" ` +
               'fell back to all items: no usable item_ids in response. Raw response:',
             JSON.stringify(res),
+          );
+          fallbackWarnings.push(
+            `Detail selection for "${entry.title}" didn't come through — ` +
+              'all details for that entry were included instead of a ' +
+              'tailored subset.',
           );
         }
         itemSelectionByCertification.set(
@@ -1016,5 +1066,12 @@ Deno.serve(async (req) => {
     sections,
   };
 
-  return jsonResponse({ cv, suggested_new_skills: suggestedNewSkills }, 200);
+  return jsonResponse(
+    {
+      cv,
+      suggested_new_skills: suggestedNewSkills,
+      fallback_warnings: fallbackWarnings,
+    },
+    200,
+  );
 });

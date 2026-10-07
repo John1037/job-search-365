@@ -828,6 +828,28 @@ body {
   margin: 2px 0 0;
 }
 
+.build-cv-warnings {
+  margin: 8px 0 0;
+}
+
+.build-cv-warnings p {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--error);
+}
+
+.build-cv-warnings ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.build-cv-warnings li {
+  font-size: 13px;
+  color: var(--error);
+  margin: 2px 0;
+}
+
 /* Indeterminate progress indicator for async LLM operations — a single
    band that repeats scrolling left-to-right, since there's no real percent
    complete to show. */
