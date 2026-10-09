@@ -361,6 +361,33 @@ const EXTRACTION_SYSTEM_PROMPT =
   'If the CV opens with a personal statement/summary/profile paragraph (a few ' +
   'sentences about the candidate, not a heading like "Profile" on its own), ' +
   'copy it into profile_summary — otherwise use null. ' +
+  'For "skills" specifically: CVs often group skills under a short category ' +
+  'label followed by a list, e.g. "Leadership: team management, recruitment, ' +
+  'coaching." Never return a grouped line like that as one single skill ' +
+  'string — break it apart into one entry per listed item, each a short ' +
+  'clear phrase, not a full sentence. Then decide, per group, whether the ' +
+  "category label itself also deserves its own entry: include it only if it " +
+  'names a real, distinct competency in its own right (e.g. "Customer care" ' +
+  'is itself a skill, worth keeping alongside the items listed under it); ' +
+  'omit it if it is purely an organizing label whose content is already ' +
+  'fully captured by its listed items (e.g. "Leadership" adds nothing once ' +
+  '"team management", "recruitment", "coaching" etc. are already separate ' +
+  "entries — don't also list \"Leadership\" itself). Within a group, don't " +
+  'list an item as its own entry if it is merely a restatement or example ' +
+  'of a broader item also in that group (e.g. if a group lists both "cross-' +
+  'team working" and "coordination with logistics and finance", the second ' +
+  'is just an instance of the first — keep "cross-team working", drop the ' +
+  "other). If a listed item is a bare word or short phrase that's unclear " +
+  'on its own (e.g. "coaching" — coaching whom, on what?), make it a clear, ' +
+  'self-contained phrase using context found elsewhere in the CV — the ' +
+  'profile paragraph or a job bullet often states the missing specifics ' +
+  '(e.g. "coaching" becomes "Coaching managers" if the profile or ' +
+  'experience bullets mention coaching managers). Never invent a specific ' +
+  "that isn't supported somewhere in the CV text; if nothing clarifies it " +
+  'anywhere, keep the phrase as written rather than guessing. The same ' +
+  'applies to a category label that\'s abbreviated versus how it\'s phrased ' +
+  'in prose elsewhere in the CV — e.g. prefer "Commercial awareness" over ' +
+  'a bare "Commercial" if the profile paragraph uses the fuller phrase. ' +
   'Respond with JSON matching exactly this shape: {' +
   '"profile_summary": string|null, ' +
   '"skills": string[], ' +
