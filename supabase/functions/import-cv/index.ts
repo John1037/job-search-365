@@ -373,11 +373,28 @@ const EXTRACTION_SYSTEM_PROMPT =
   'fully captured by its listed items (e.g. "Leadership" adds nothing once ' +
   '"team management", "recruitment", "coaching" etc. are already separate ' +
   "entries — don't also list \"Leadership\" itself). Within a group, don't " +
-  'list an item as its own entry if it is merely a restatement or example ' +
-  'of a broader item also in that group (e.g. if a group lists both "cross-' +
-  'team working" and "coordination with logistics and finance", the second ' +
-  'is just an instance of the first — keep "cross-team working", drop the ' +
-  "other). If a listed item is a bare word or short phrase that's unclear " +
+  'list an item as its own entry if a broader item also in that group ' +
+  'already covers it — this includes a pure restatement, but also an item ' +
+  'that merely names a specific instance, example, or narrower case of the ' +
+  'broader one, even if it adds surface detail the broader phrase doesn\'t ' +
+  'literally contain (e.g. if a group lists both "cross-team working" and ' +
+  '"coordination with logistics and finance", the second names two ' +
+  'specific departments but adds no real standalone skill beyond what ' +
+  '"cross-team working" already means — keep "cross-team working", drop ' +
+  'the other, even though it is technically more specific). Separately, ' +
+  'be suspicious of any item — grouped or not — that scopes itself to a ' +
+  'short, specific, seemingly arbitrary set of named things (particular ' +
+  'departments, tools, or people) as though that were the exhaustive ' +
+  'boundary of the skill, rather than an illustrative example. Genuine ' +
+  'competencies are not normally phrased this narrowly, and a real CV ' +
+  'would not usually claim an ability limited to exactly those named ' +
+  'things; phrasing like that more often reflects how a bullet happened ' +
+  'to be drafted than a deliberate, meaningful skill. When an item reads ' +
+  'this way, drop it rather than extracting it literally, even if nothing ' +
+  'else in the group already covers it — e.g. "coordination with ' +
+  'logistics and finance" should be dropped on these grounds alone, ' +
+  'independent of whether "cross-team working" is also present. If a ' +
+  "listed item is a bare word or short phrase that's unclear " +
   'on its own (e.g. "coaching" — coaching whom, on what?), make it a clear, ' +
   'self-contained phrase using context found elsewhere in the CV — the ' +
   'profile paragraph or a job bullet often states the missing specifics ' +
