@@ -470,23 +470,31 @@ Deno.serve(async (req) => {
         const res = await callBedrock(
           'Given a job and a candidate\'s list of skills (id, text), decide ' +
             'which to include on a tailored CV for this job and in what order. ' +
-            'Include a skill if it connects — even tangentially or ' +
-            'potentially — to something the job DESCRIPTION actually says: a ' +
-            'responsibility, requirement, tool, theme, or clearly implied ' +
-            'need. Omit a skill only if it has NO such connection at all — ' +
-            'not even a tangential or potential one — to anything the ' +
-            'description actually mentions. Being in the same general field ' +
-            "or profession as the job is NOT by itself enough to include a " +
-            "skill that doesn't connect to anything the description says; " +
-            "conversely, don't reason from the job title/field in the " +
-            'abstract — judge every skill against the description\'s actual ' +
-            'content. Separately, order by relevance — put first whichever ' +
-            'skills most directly match something the job title or ' +
-            'description specifically calls out (a named tool, technology, ' +
-            'domain, or capability — e.g. "automation" or "AI" when the role ' +
-            'is explicitly about automation/AI), with more tangentially-' +
-            'connected skills following after. Never invent an id. Respond ' +
-            'with JSON: {"skill_ids": ["..."]}',
+            'Include a skill only if it has a genuine, meaningful connection ' +
+            'to something the job DESCRIPTION actually says: a named ' +
+            'responsibility, requirement, tool, technology, or a theme the ' +
+            'description specifically emphasizes. A connection that could ' +
+            'merely be argued for is not enough — ask whether someone reading ' +
+            'this specific job description would recognize the skill as ' +
+            'actually relevant to what the role needs, not just loosely ' +
+            'compatible with it. Be especially skeptical of skills worded ' +
+            'broadly enough that they would pass that test for almost any ' +
+            'job (e.g. generic phrases like "teamwork", "communication", or ' +
+            '"problem-solving" with no specific context) — include one of ' +
+            'those only if the description itself specifically calls out ' +
+            'that kind of ability, not by default just because it could ' +
+            'apply. Being in the same general field or profession as the job ' +
+            "is NOT by itself enough to include a skill that doesn't connect " +
+            "to anything the description specifically says; conversely, " +
+            "don't reason from the job title/field in the abstract — judge " +
+            "every skill against the description's actual content. " +
+            'Separately, order by relevance — put first whichever skills most ' +
+            'directly match something the job title or description ' +
+            'specifically calls out (a named tool, technology, domain, or ' +
+            'capability — e.g. "automation" or "AI" when the role is ' +
+            'explicitly about automation/AI), with more loosely-connected ' +
+            '(but still genuinely relevant) skills following after. Never ' +
+            'invent an id. Respond with JSON: {"skill_ids": ["..."]}',
           `${jobContext}\n\nSkills:\n${JSON.stringify(
             skills.map((s) => ({ id: s.id, text: s.skill_text })),
           )}`,
