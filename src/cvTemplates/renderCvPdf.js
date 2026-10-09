@@ -579,6 +579,38 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl, font
       }
     }
 
+    // Measures what bodyLine/boldLine would wrap `text` to, without drawing
+    // — used to reserve room for a whole atomic block (see
+    // ensureAtomicRoom) before any of its lines are actually drawn, so an
+    // entry's own per-line ensureRoom calls never find a reason to break
+    // mid-entry: the room was already secured in one piece.
+    function measureLineBlockHeight(text, bold) {
+      doc.setFont(fontName, bold ? 'bold' : 'normal');
+      doc.setFontSize(STYLE.sidebarBody.size);
+      const lines = doc.splitTextToSize(text, zones.sidebar.width);
+      return lines.length * STYLE.sidebarBody.lineHeight;
+    }
+
+    // Like ensureRoom, but for a whole multi-line entry (an education
+    // subgroup, a certification entry) treated as one non-splittable unit:
+    // if it doesn't fit as a whole, break the page before drawing any of
+    // it, rather than letting it split mid-entry and orphan a line on the
+    // next page. `sectionHeadingText`, when given, is redrawn as "X (CONT)"
+    // at the top of the new page so a section that spans pages is never
+    // silently unlabeled.
+    function ensureAtomicRoom(height, sectionHeadingText) {
+      if (y + height > pageHeight - PAGE_MARGIN) {
+        page += 1;
+        y = CONTENT_TOP;
+        if (draw) {
+          if (page > doc.getNumberOfPages()) doc.addPage();
+          doc.setPage(page);
+          drawSidebarBand(page);
+        }
+        if (sectionHeadingText) heading(`${sectionHeadingText} (CONT)`);
+      }
+    }
+
     const bodyColor = palette.sidebarText ? hexToRgb(palette.sidebarText) : textRgb;
 
     // Contact details live in the sidebar for this layout, not the main
@@ -600,10 +632,18 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl, font
       y += 4 * scale;
       heading(section.heading);
       if (section.type === 'skills') {
-        for (const item of section.items) bodyLine(item, bodyColor);
+        for (const item of section.items) {
+          ensureAtomicRoom(measureLineBlockHeight(item, false), section.heading);
+          bodyLine(item, bodyColor);
+        }
       } else if (section.type === 'education') {
         for (const group of section.groups) {
           for (const subgroup of group.subgroups) {
+            let subgroupHeight = measureLineBlockHeight(subgroup.header, true);
+            for (const qual of subgroup.qualifications) {
+              if (qual.detail) subgroupHeight += measureLineBlockHeight(qual.detail, false);
+            }
+            ensureAtomicRoom(subgroupHeight, section.heading);
             boldLine(subgroup.header, bodyColor);
             for (const qual of subgroup.qualifications) {
               if (qual.detail) bodyLine(qual.detail, bodyColor);
@@ -616,6 +656,7 @@ export async function renderCvPdf(cv, template, paletteIndex, photoDataUrl, font
           const entryHeading = entry.date_range
             ? `${entry.title}, ${entry.institution} (${entry.date_range})`
             : `${entry.title}, ${entry.institution}`;
+          ensureAtomicRoom(measureLineBlockHeight(entryHeading, false), section.heading);
           bodyLine(entryHeading, bodyColor);
           y += 4 * scale;
         }
