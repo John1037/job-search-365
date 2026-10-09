@@ -401,7 +401,10 @@ Deno.serve(async (req) => {
               { role: 'user', content: userPrompt },
             ],
           }),
-          signal: AbortSignal.timeout(45000),
+          // 45s wasn't enough under real concurrent load (4 calls at a
+          // time via the semaphore below) — raised to match the 60s
+          // already used by import-cv/scan-gmail-inbox/import-job-listing.
+          signal: AbortSignal.timeout(60000),
         },
       );
 
