@@ -9,7 +9,7 @@ function Layout() {
   const [shortName, setShortName] = useState(null);
   const [country, setCountry] = useState(null);
   const [alertWindowDays, setAlertWindowDays] = useState(30);
-  const [accountLevel, setAccountLevel] = useState('user');
+  const [permissionLevel, setPermissionLevel] = useState('user');
 
   useEffect(() => {
     async function loadProfile() {
@@ -34,7 +34,7 @@ function Layout() {
       if (profile?.short_name) setShortName(profile.short_name);
       if (profile?.country) setCountry(profile.country);
       if (profile?.alert_window_days) setAlertWindowDays(profile.alert_window_days);
-      if (profile?.account_level) setAccountLevel(profile.account_level);
+      if (profile?.permission_level) setPermissionLevel(profile.permission_level);
     }
 
     loadProfile();
@@ -42,7 +42,7 @@ function Layout() {
 
   return (
     <>
-      <ControlBar avatarUrl={avatarUrl} country={country} accountLevel={accountLevel} />
+      <ControlBar avatarUrl={avatarUrl} country={country} permissionLevel={permissionLevel} />
       <Outlet
         context={{
           avatarUrl,
@@ -53,7 +53,7 @@ function Layout() {
           setCountry,
           alertWindowDays,
           setAlertWindowDays,
-          accountLevel,
+          permissionLevel,
         }}
       />
       <SiteFooter />

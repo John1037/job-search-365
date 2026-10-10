@@ -3,20 +3,20 @@
 -- data in this project. Every other table is scoped strictly to its own
 -- owner via RLS; this is a deliberate, narrow exception for admin access.
 
--- --- 1. profiles.account_level ---------------------------------------------
+-- --- 1. profiles.permission_level ---------------------------------------------
 
 alter table public.profiles
-  add column account_level text not null default 'user'
-  check (account_level in ('user', 'admin', 'owner'));
+  add column permission_level text not null default 'user'
+  check (permission_level in ('user', 'admin', 'owner'));
 
 -- Prevent self-escalation: a user's own client-side update to their profile
 -- row (e.g. EditProfile.jsx's upsert) must never be able to touch this
 -- column, regardless of what RLS otherwise allows on the rest of the row.
 -- This is a column-privilege revoke, independent of and in addition to
 -- whatever RLS policy already governs updates to this table.
-revoke update (account_level) on public.profiles from authenticated;
+revoke update (permission_level) on public.profiles from authenticated;
 
-update public.profiles set account_level = 'owner'
+update public.profiles set permission_level = 'owner'
 where id = (select id from auth.users where email = 'j.mcmanus37@gmail.com');
 
 -- --- 2. activity_log ---------------------------------------------------
@@ -45,7 +45,7 @@ create policy "admins and owner can read all activity" on public.activity_log
     exists (
       select 1 from public.profiles
       where profiles.id = auth.uid()
-        and profiles.account_level in ('admin', 'owner')
+        and profiles.permission_level in ('admin', 'owner')
     )
   );
 
