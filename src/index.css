@@ -17,6 +17,18 @@
   --sort-text: #7e14ff;
   --sort-bg: rgba(126, 20, 255, 0.1);
   --sort-border: rgba(126, 20, 255, 0.3);
+  /* Categorical palette for the admin activity dashboard's action-type
+     breakdown chart — fixed order, never reassigned per-render. The
+     dataviz skill's reference 8-hue palette, re-validated (not assumed)
+     against this app's actual --bg values via validate_palette.js. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --chart-7: #4a3aa7;
+  --chart-8: #e34948;
   color-scheme: light dark;
   font: 16px/1.4 system-ui, 'Segoe UI', Roboto, sans-serif;
 }
@@ -40,6 +52,14 @@
     --sort-text: #d8b4fe;
     --sort-bg: rgba(216, 180, 254, 0.2);
     --sort-border: rgba(216, 180, 254, 0.55);
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-3: #199e70;
+    --chart-4: #c98500;
+    --chart-5: #d55181;
+    --chart-6: #008300;
+    --chart-7: #9085e9;
+    --chart-8: #e66767;
   }
 }
 
@@ -60,6 +80,14 @@
   --filter-border: rgba(240, 168, 196, 0.4);
   --sort-bg: rgba(216, 180, 254, 0.2);
   --sort-border: rgba(216, 180, 254, 0.55);
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #008300;
+  --chart-7: #9085e9;
+  --chart-8: #e66767;
 }
 
 /* Chrome/Safari/Edge force their own light autofill background via an
@@ -2823,4 +2851,72 @@ body {
   margin: 10px auto 0;
   text-decoration: none;
   text-align: center;
+}
+
+.admin-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.admin-stat-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.admin-stat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.admin-stat-tile-total {
+  border-color: var(--accent);
+}
+
+.admin-stat-tile-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-stat-tile-label {
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.admin-chart-section {
+  margin-bottom: 32px;
+}
+
+.admin-chart-section h2 {
+  font-size: 16px;
+  margin: 0 0 12px;
+}
+
+.admin-activity-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-activity-table th,
+.admin-activity-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-activity-table th {
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.7;
+  font-weight: 600;
 }
