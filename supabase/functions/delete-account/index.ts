@@ -76,6 +76,16 @@ Deno.serve(async (req) => {
 
   console.log('[delete-account] deleting auth user:', user.id);
 
+  // Logged before deletion, while the user still exists — activity_log's
+  // user_id is ON DELETE SET NULL (not cascade) specifically so this row
+  // survives the account being deleted, but the email is only available
+  // right now, so it's captured into `details` rather than relied on later.
+  await supabaseAdmin.from('activity_log').insert({
+    user_id: user.id,
+    action: 'account_deleted',
+    details: { email: user.email },
+  });
+
   // Deleting the auth user cascades to profiles/documents/jobs/events via
   // their "on delete cascade" foreign keys.
   const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(

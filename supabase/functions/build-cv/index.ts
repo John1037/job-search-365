@@ -109,6 +109,13 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Not authenticated' }, 401);
   }
 
+  // Admin client using the service role key, used only for the activity
+  // log entry at the end — never for anything that should go through RLS.
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+
   let job_id: string | undefined;
   let recent_mode: string | undefined;
   let recent_count: number | undefined;
@@ -1076,6 +1083,12 @@ Deno.serve(async (req) => {
     avatar_url: profile?.avatar_url ?? null,
     sections,
   };
+
+  await supabaseAdmin.from('activity_log').insert({
+    user_id: user.id,
+    action: 'cv_built',
+    details: { job_id },
+  });
 
   return jsonResponse(
     {

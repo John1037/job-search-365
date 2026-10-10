@@ -17,6 +17,7 @@ import JobDetail from './pages/JobDetail';
 import CvComponents from './pages/CvComponents';
 import Inbox from './pages/Inbox';
 import InboxCallback from './pages/InboxCallback';
+import AdminActivity from './pages/AdminActivity';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
 
@@ -114,6 +115,7 @@ function App() {
           <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/inbox" element={<Inbox />} />
           <Route path="/inbox/callback" element={<InboxCallback />} />
+          <Route path="/admin/activity" element={<AdminActivity />} />
         </Route>
         <Route
           path="*"

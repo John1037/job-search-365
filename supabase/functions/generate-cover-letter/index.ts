@@ -41,6 +41,13 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Not authenticated' }, 401);
   }
 
+  // Admin client using the service role key, used only for the activity
+  // log entry at the end — never for anything that should go through RLS.
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+
   const { job_id } = await req.json();
   if (!job_id) {
     return jsonResponse({ error: 'Missing job_id' }, 400);
@@ -174,6 +181,12 @@ Deno.serve(async (req) => {
       console.log('[generate-cover-letter] no draft in Bedrock response:', JSON.stringify(result));
       return jsonResponse({ error: 'Failed to generate cover letter' }, 502);
     }
+
+    await supabaseAdmin.from('activity_log').insert({
+      user_id: user.id,
+      action: 'cover_letter_composed',
+      details: { job_id },
+    });
 
     return jsonResponse({ draft }, 200);
   } catch (err) {

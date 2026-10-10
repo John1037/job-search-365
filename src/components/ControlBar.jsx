@@ -5,7 +5,7 @@ import PersonIcon from './PersonIcon';
 import NavDropdown from './NavDropdown';
 import AddJobDialog from './AddJobDialog';
 
-function ControlBar({ avatarUrl, country }) {
+function ControlBar({ avatarUrl, country, accountLevel }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [addJobOpen, setAddJobOpen] = useState(false);
   const menuRef = useRef(null);
@@ -53,6 +53,15 @@ function ControlBar({ avatarUrl, country }) {
     { label: 'Inbox', onClick: () => navigate('/inbox') },
   ];
 
+  // Nav-level gating only — the real security boundary is the RLS policy
+  // on activity_log (admin/owner account_level required to read any rows),
+  // not this check, which just keeps the menu item out of regular users'
+  // way.
+  const isAdmin = accountLevel === 'admin' || accountLevel === 'owner';
+  const adminItems = [
+    { label: 'Activity log', onClick: () => navigate('/admin/activity') },
+  ];
+
   return (
     <header className="control-bar">
       <Link to="/main" className="control-bar-brand">
@@ -62,6 +71,7 @@ function ControlBar({ avatarUrl, country }) {
 
       <div className="control-bar-right">
         <nav className="control-bar-menu">
+          {isAdmin && <NavDropdown label="Admin" items={adminItems} />}
           <NavDropdown
             label={
               <>

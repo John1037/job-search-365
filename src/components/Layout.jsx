@@ -9,6 +9,7 @@ function Layout() {
   const [shortName, setShortName] = useState(null);
   const [country, setCountry] = useState(null);
   const [alertWindowDays, setAlertWindowDays] = useState(30);
+  const [accountLevel, setAccountLevel] = useState('user');
 
   useEffect(() => {
     async function loadProfile() {
@@ -33,6 +34,7 @@ function Layout() {
       if (profile?.short_name) setShortName(profile.short_name);
       if (profile?.country) setCountry(profile.country);
       if (profile?.alert_window_days) setAlertWindowDays(profile.alert_window_days);
+      if (profile?.account_level) setAccountLevel(profile.account_level);
     }
 
     loadProfile();
@@ -40,7 +42,7 @@ function Layout() {
 
   return (
     <>
-      <ControlBar avatarUrl={avatarUrl} country={country} />
+      <ControlBar avatarUrl={avatarUrl} country={country} accountLevel={accountLevel} />
       <Outlet
         context={{
           avatarUrl,
@@ -51,6 +53,7 @@ function Layout() {
           setCountry,
           alertWindowDays,
           setAlertWindowDays,
+          accountLevel,
         }}
       />
       <SiteFooter />
