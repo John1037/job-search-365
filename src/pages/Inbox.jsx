@@ -23,6 +23,11 @@ function Inbox() {
   const [selectedJobByMatch, setSelectedJobByMatch] = useState({});
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
+  // Only set right after a scan completes in this page visit — null means
+  // "don't show a result message", not "zero matches found". Never
+  // persisted/restored, so navigating away and back always starts at null,
+  // regardless of how many matches currently exist.
+  const [lastScanCount, setLastScanCount] = useState(null);
   const [error, setError] = useState(null);
   const [disconnectPending, setDisconnectPending] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
@@ -55,18 +60,19 @@ function Inbox() {
     if (jobsResult.error) setError(jobsResult.error.message);
     else setOpenJobs(jobsResult.data ?? []);
 
+    let loadedMatches = [];
     if (matchesResult.error) {
       setError(matchesResult.error.message);
     } else {
-      setMatches(matchesResult.data ?? []);
+      loadedMatches = matchesResult.data ?? [];
+      setMatches(loadedMatches);
       setSelectedJobByMatch(
-        Object.fromEntries(
-          (matchesResult.data ?? []).map((m) => [m.id, m.job_id ?? '']),
-        ),
+        Object.fromEntries(loadedMatches.map((m) => [m.id, m.job_id ?? ''])),
       );
     }
 
     setLoading(false);
+    return loadedMatches;
   }
 
   useEffect(() => {
@@ -131,6 +137,9 @@ function Inbox() {
   async function handleScanNow() {
     setScanning(true);
     setError(null);
+    // Clear any message left over from a previous scan right away, rather
+    // than letting stale text sit there while this scan runs.
+    setLastScanCount(null);
 
     const {
       data: { session },
@@ -154,7 +163,8 @@ function Inbox() {
       return;
     }
 
-    await loadAll();
+    const loadedMatches = await loadAll();
+    setLastScanCount(loadedMatches.length);
   }
 
   async function handleDismiss(match) {
@@ -232,13 +242,16 @@ function Inbox() {
         )}
       </div>
 
-      {error && <p className="form-error">{error}</p>}
-      {scanning && <LoadingBar />}
-      {!scanning && matches.length > 0 && (
-        <p className="field-hint">
-          Found {matches.length} possible update{matches.length === 1 ? '' : 's'}.
+      {!scanning && lastScanCount !== null && (
+        <p className="field-hint inbox-scan-result">
+          {lastScanCount === 0
+            ? 'No pending matches.'
+            : `Found ${lastScanCount} possible update${lastScanCount === 1 ? '' : 's'}.`}
         </p>
       )}
+
+      {error && <p className="form-error">{error}</p>}
+      {scanning && <LoadingBar />}
 
       {loading ? (
         <p>Loading…</p>
@@ -269,11 +282,7 @@ function Inbox() {
             </button>
           </div>
 
-          {matches.length === 0 ? (
-            <p className="empty-list-hint">
-              No pending matches. Click "Scan now" to check for updates.
-            </p>
-          ) : (
+          {matches.length > 0 && (
             <ul className="email-match-list">
               {matches.map((match) => (
                 <li key={match.id} className="email-match-card">

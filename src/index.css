@@ -918,6 +918,10 @@ body {
   margin: 2px 0 0;
 }
 
+.inbox-scan-result {
+  text-align: right;
+}
+
 /* A link-styled button embedded mid-sentence in prose (e.g. empty-state
    hints) — resets button chrome so it reads as inline text, not a control. */
 .inline-link-button {
