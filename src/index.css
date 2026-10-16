@@ -918,8 +918,11 @@ body {
   margin: 2px 0 0;
 }
 
-.inbox-scan-result {
-  text-align: right;
+.inbox-scan-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
 }
 
 /* A link-styled button embedded mid-sentence in prose (e.g. empty-state

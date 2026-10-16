@@ -242,14 +242,6 @@ function Inbox() {
         )}
       </div>
 
-      {!scanning && lastScanCount !== null && (
-        <p className="field-hint inbox-scan-result">
-          {lastScanCount === 0
-            ? 'No pending matches.'
-            : `Found ${lastScanCount} possible update${lastScanCount === 1 ? '' : 's'}.`}
-        </p>
-      )}
-
       {error && <p className="form-error">{error}</p>}
       {scanning && <LoadingBar />}
 
@@ -280,6 +272,17 @@ function Inbox() {
             >
               Disconnect
             </button>
+          </div>
+
+          <div className="inbox-scan-status-row">
+            <p className="field-hint">Click "Scan now" to check for updates.</p>
+            {!scanning && lastScanCount !== null && (
+              <p className="field-hint">
+                {lastScanCount === 0
+                  ? 'No pending matches.'
+                  : `Found ${lastScanCount} possible update${lastScanCount === 1 ? '' : 's'}.`}
+              </p>
+            )}
           </div>
 
           {matches.length > 0 && (
