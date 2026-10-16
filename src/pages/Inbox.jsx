@@ -372,7 +372,7 @@ function Inbox() {
 
       <button
         type="button"
-        className="button-outline"
+        className="button-outline inbox-back-button"
         onClick={() => navigate('/main')}
       >
         Back to home

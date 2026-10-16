@@ -925,6 +925,10 @@ body {
   gap: 12px;
 }
 
+.inbox-back-button {
+  margin-top: 20px;
+}
+
 /* A link-styled button embedded mid-sentence in prose (e.g. empty-state
    hints) — resets button chrome so it reads as inline text, not a control. */
 .inline-link-button {
