@@ -63,6 +63,14 @@ function Signup() {
       <main className="signup-page">
         <h1 className="signup-heading">Choose your plan</h1>
 
+        <p className="signup-notice">
+          This site is under development and access is provided for testing
+          and evaluation only. Free account gives access to all currently
+          active features. Accounts created for testing/evaluation will be
+          deleted overnight unless prior arrangements are made to retain
+          them for longer (email support@jobsearch365.com).
+        </p>
+
         <div className="pricing-cards">
           {tiers.map((tier) => (
             <div
