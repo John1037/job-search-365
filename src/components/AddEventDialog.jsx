@@ -31,6 +31,7 @@ function AddEventDialog({
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
   const [otherDetail, setOtherDetail] = useState('');
+  const [interviewDetails, setInterviewDetails] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -42,6 +43,7 @@ function AddEventDialog({
     setEventDate('');
     setEventTime('');
     setOtherDetail('');
+    setInterviewDetails('');
     setError(null);
   }
 
@@ -64,6 +66,7 @@ function AddEventDialog({
       setEventType('');
       setEventDate('');
       setEventTime('');
+      setInterviewDetails('');
     } else if (name === 'Other') {
       setOtherDetail('');
       setEventDate(todayDateString());
@@ -105,6 +108,12 @@ function AddEventDialog({
     } else if (INTERVIEW_EVENT_NAMES.includes(eventName)) {
       payload.event_type = eventType;
       payload.event_time = eventTime || null;
+      // Only "Interview scheduled" gets the free-text details field below —
+      // "Interview cancelled"/"completed" share this branch for type/time
+      // but not this.
+      if (eventName === 'Interview scheduled') {
+        payload.location = interviewDetails || null;
+      }
     } else if (eventName === 'Other') {
       payload.event_type = otherDetail || null;
     }
@@ -230,6 +239,18 @@ function AddEventDialog({
               value={eventTime}
               onChange={(e) => setEventTime(e.target.value)}
             />
+
+            {eventName === 'Interview scheduled' && (
+              <>
+                <label htmlFor="interviewDetails">Details</label>
+                <textarea
+                  id="interviewDetails"
+                  rows={3}
+                  value={interviewDetails}
+                  onChange={(e) => setInterviewDetails(e.target.value)}
+                />
+              </>
+            )}
           </>
         )}
 
