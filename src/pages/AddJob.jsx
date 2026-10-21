@@ -42,24 +42,28 @@ function AddJob() {
       return;
     }
 
-    const { error: insertError } = await supabase.from('jobs').insert({
-      user_id: user.id,
-      job_title: jobTitle,
-      employer,
-      salary_min: salaryMin === '' ? null : Number(salaryMin),
-      salary_max: salaryMax === '' ? null : Number(salaryMax),
-      salary_currency: salaryCurrency,
-      salary_type: salaryType === '' ? null : salaryType,
-      salary_basis: salaryBasis === '' ? null : salaryBasis,
-      employment_type: employmentType === '' ? null : employmentType,
-      hours_per_week:
-        employmentType === 'part_time' && hoursPerWeek !== ''
-          ? Number(hoursPerWeek)
-          : null,
-      location_type: locationType === '' ? null : locationType,
-      location: locationType === 'remote' ? null : location || null,
-      status: 'Interested',
-    });
+    const { data: inserted, error: insertError } = await supabase
+      .from('jobs')
+      .insert({
+        user_id: user.id,
+        job_title: jobTitle,
+        employer,
+        salary_min: salaryMin === '' ? null : Number(salaryMin),
+        salary_max: salaryMax === '' ? null : Number(salaryMax),
+        salary_currency: salaryCurrency,
+        salary_type: salaryType === '' ? null : salaryType,
+        salary_basis: salaryBasis === '' ? null : salaryBasis,
+        employment_type: employmentType === '' ? null : employmentType,
+        hours_per_week:
+          employmentType === 'part_time' && hoursPerWeek !== ''
+            ? Number(hoursPerWeek)
+            : null,
+        location_type: locationType === '' ? null : locationType,
+        location: locationType === 'remote' ? null : location || null,
+        status: 'Interested',
+      })
+      .select('id')
+      .single();
 
     setSaving(false);
 
@@ -68,7 +72,7 @@ function AddJob() {
       return;
     }
 
-    navigate('/jobs');
+    navigate(`/jobs/${inserted.id}`);
   }
 
   return (
