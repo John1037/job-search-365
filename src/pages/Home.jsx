@@ -3,6 +3,7 @@ import { Link, useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import JobListItem from '../components/JobListItem';
 import AddJobDialog from '../components/AddJobDialog';
+import EventDetailsDialog from '../components/EventDetailsDialog';
 import { getOnboardingStatus, ONBOARDING_CHECKED_KEY } from '../onboarding';
 import {
   JOB_LIST_COLUMNS,
@@ -71,6 +72,7 @@ function Home() {
   const [loadingInterested, setLoadingInterested] = useState(true);
   const [interestedError, setInterestedError] = useState(null);
   const [addJobOpen, setAddJobOpen] = useState(false);
+  const [selectedEventAlert, setSelectedEventAlert] = useState(null);
 
   useEffect(() => {
     async function loadAlerts() {
@@ -87,7 +89,7 @@ function Home() {
         supabase
           .from('events')
           .select(
-            'id, event_name, event_type, event_date, event_time, job_id, jobs(job_title, employer)',
+            'id, event_name, event_type, event_date, event_time, location, job_id, jobs(job_title, employer)',
           )
           .in('event_name', UPCOMING_EVENT_NAMES)
           .gte('event_date', todayStr)
@@ -114,6 +116,7 @@ function Home() {
 
       const eventAlerts = eventsResult.data.map((event) => ({
         id: `event-${event.id}`,
+        isEvent: true,
         jobId: event.job_id,
         date: event.event_date,
         time: event.event_time,
@@ -123,6 +126,11 @@ function Home() {
         subtitle: event.jobs
           ? `${event.jobs.job_title} — ${event.jobs.employer}`
           : null,
+        eventName: event.event_name,
+        eventType: event.event_type,
+        location: event.location,
+        jobTitle: event.jobs?.job_title ?? null,
+        employer: event.jobs?.employer ?? null,
       }));
 
       // A job sitting at "Application acknowledged" gets auto-closed as
@@ -241,12 +249,22 @@ function Home() {
             {alerts.map((alert) => (
               <li key={alert.id} className="item-row">
                 <span className="item-name">
-                  <Link
-                    to={`/jobs/${alert.jobId}`}
-                    className="item-name-primary item-name-link"
-                  >
-                    {alert.primary}
-                  </Link>
+                  {alert.isEvent ? (
+                    <button
+                      type="button"
+                      className="item-name-primary item-name-link alert-item-button"
+                      onClick={() => setSelectedEventAlert(alert)}
+                    >
+                      {alert.primary}
+                    </button>
+                  ) : (
+                    <Link
+                      to={`/jobs/${alert.jobId}`}
+                      className="item-name-primary item-name-link"
+                    >
+                      {alert.primary}
+                    </Link>
+                  )}
                   {alert.subtitle && (
                     <span className="item-subtext">{alert.subtitle}</span>
                   )}
@@ -333,6 +351,12 @@ function Home() {
       </section>
 
       <AddJobDialog open={addJobOpen} onClose={() => setAddJobOpen(false)} />
+      <EventDetailsDialog
+        open={!!selectedEventAlert}
+        onClose={() => setSelectedEventAlert(null)}
+        event={selectedEventAlert}
+        isUS={isUS}
+      />
     </div>
   );
 }

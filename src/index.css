@@ -1266,6 +1266,7 @@ body {
 }
 
 .button-positive {
+  display: inline-block;
   padding: 8px 16px;
   font-size: 14px;
   font-weight: 500;
@@ -1273,6 +1274,7 @@ body {
   background: #16a34a;
   border: none;
   border-radius: 6px;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -1362,6 +1364,20 @@ body {
 .alerts-list .item-name-link,
 .alerts-list .item-meta {
   color: var(--error);
+}
+
+/* An event alert's primary text is a <button> (opens the event-details
+   dialog) rather than a <Link>, but reads identically — reset button
+   chrome back to plain text so .item-name-link's own coloring is all that
+   shows, same as the Link variant used for non-event alerts. */
+.alert-item-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .alerts-list .item-name-link:hover {
