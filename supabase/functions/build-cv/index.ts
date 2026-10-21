@@ -1084,11 +1084,18 @@ Deno.serve(async (req) => {
     sections,
   };
 
-  await supabaseAdmin.from('activity_log').insert({
-    user_id: user.id,
-    action: 'cv_built',
-    details: { job_id },
-  });
+  // Never let a logging hiccup take down an already-successful build — this
+  // is purely observational, not something the response should depend on.
+  try {
+    const { error: logError } = await supabaseAdmin
+      .from('activity_log')
+      .insert({ user_id: user.id, action: 'cv_built', details: { job_id } });
+    if (logError) {
+      console.log('[build-cv] activity_log insert failed (non-fatal):', logError.message);
+    }
+  } catch (err) {
+    console.log('[build-cv] activity_log insert failed (non-fatal):', err);
+  }
 
   return jsonResponse(
     {

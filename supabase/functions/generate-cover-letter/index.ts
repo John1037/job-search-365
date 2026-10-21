@@ -182,11 +182,19 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Failed to generate cover letter' }, 502);
     }
 
-    await supabaseAdmin.from('activity_log').insert({
-      user_id: user.id,
-      action: 'cover_letter_composed',
-      details: { job_id },
-    });
+    // Isolated from the outer try/catch's error handling deliberately — a
+    // logging hiccup here must never turn an already-generated draft into
+    // a false "Failed to generate cover letter" response.
+    try {
+      const { error: logError } = await supabaseAdmin
+        .from('activity_log')
+        .insert({ user_id: user.id, action: 'cover_letter_composed', details: { job_id } });
+      if (logError) {
+        console.log('[generate-cover-letter] activity_log insert failed (non-fatal):', logError.message);
+      }
+    } catch (err) {
+      console.log('[generate-cover-letter] activity_log insert failed (non-fatal):', err);
+    }
 
     return jsonResponse({ draft }, 200);
   } catch (err) {
