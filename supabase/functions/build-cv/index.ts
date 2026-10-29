@@ -909,65 +909,13 @@ Deno.serve(async (req) => {
     );
   }
 
+  // Education is never AI-filtered or reordered — always produced in full,
+  // in the order the user themselves set up in CV components. No Bedrock
+  // call needed at all.
   for (const entry of education) {
     const items = itemsByEducation.get(entry.id) ?? [];
     if (items.length === 0) continue;
-
-    tasks.push(
-      (async () => {
-        const res = await callBedrock(
-          'Given a job and a list of qualification detail lines (id, text) ' +
-            'for one education entry, order them by relevance to this job, ' +
-            "then decide which to include. Only omit a line if it's " +
-            'genuinely not worth including — irrelevant in general, ' +
-            'redundant with one you\'re keeping, or clearly weaker than ' +
-            'the others. How many you MAY omit depends strictly on how ' +
-            'many lines are given, as a maximum, never a target to reach: ' +
-            '3 or fewer lines — omit none, keep all of them. 4 lines — ' +
-            'omit at most 1. 5 lines — omit at most 2. 6 or more lines — ' +
-            'omit at most 3. Omitting up to that maximum is never ' +
-            'required — if every line is genuinely worth keeping, keep ' +
-            'them all. Never omit a line just to reach the maximum, and ' +
-            'never omit more than the maximum allows.' +
-            omitCapWorkedExample +
-            ' Never invent an id. Respond with JSON: {"item_ids": ["..."]}',
-          `${jobContext}\n\nQualification: ${entry.level}` +
-            `${entry.subject ? ` in ${entry.subject}` : ''} at ${entry.establishment}\n` +
-            `There are ${items.length} detail lines below.\n` +
-            `Details:\n${JSON.stringify(items.map((it) => ({ id: it.id, text: it.detail_text })))}`,
-        );
-        const ids = Array.isArray(res?.item_ids) ? res.item_ids : null;
-        const validIds = new Set(items.map((it) => it.id));
-        const filtered = ids ? ids.filter((id: string) => validIds.has(id)) : [];
-        if (filtered.length === 0) {
-          console.log(
-            `[build-cv] education item selection for "${entry.establishment}" ` +
-              'fell back to all items: no usable item_ids in response. Raw response:',
-            JSON.stringify(res),
-          );
-          fallbackWarnings.push(
-            `Detail selection for "${entry.establishment}" didn't come ` +
-              'through — all details for that entry were included instead ' +
-              'of a tailored subset.',
-          );
-          itemSelectionByEducation.set(entry.id, items.map((it) => it.id));
-        } else {
-          const finalIds = enforceOmitCap(filtered, items);
-          if (finalIds.length > filtered.length) {
-            console.log(
-              `[build-cv] education item selection for "${entry.establishment}" ` +
-                `returned ${filtered.length} of ${items.length}, below the ` +
-                `allowed maximum omission — topped up to ${finalIds.length}.`,
-            );
-            fallbackWarnings.push(
-              `Detail selection for "${entry.establishment}" omitted more ` +
-                'than allowed — some details it left out were added back in.',
-            );
-          }
-          itemSelectionByEducation.set(entry.id, finalIds);
-        }
-      })(),
-    );
+    itemSelectionByEducation.set(entry.id, items.map((it) => it.id));
   }
 
   for (const entry of certifications) {
