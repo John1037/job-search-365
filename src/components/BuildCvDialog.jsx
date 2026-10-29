@@ -490,7 +490,8 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
       );
       clearPreview();
       setPreviewUrl(URL.createObjectURL(blob));
-    } catch {
+    } catch (err) {
+      console.error('[BuildCvDialog] renderCvPdf (preview) failed:', err);
       setError('Failed to render preview.');
     }
 
@@ -530,7 +531,8 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
     try {
       const photoDataUrl = await getPhotoDataUrl();
       pdfBlob = await renderCvPdf(cleanCv, template, paletteIndex, photoDataUrl, fontFamily);
-    } catch {
+    } catch (err) {
+      console.error('[BuildCvDialog] renderCvPdf (save) failed:', err);
       setError('Failed to render the CV.');
       setSaving(false);
       return;
