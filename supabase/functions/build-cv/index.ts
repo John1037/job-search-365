@@ -675,11 +675,18 @@ Deno.serve(async (req) => {
         if (!rewordForMatch) {
           const res = await callBedrock(
             'Given a job and a list of achievement/responsibility bullets ' +
-              '(id, text) for one role on a candidate\'s CV, choose which are ' +
-              'relevant to this job and order them by relevance. Keep enough ' +
-              "to represent the role well; omit ones that clearly don't fit. " +
-              'Never invent an id or bullet text. Respond with JSON: ' +
-              '{"bullet_ids": ["..."]}',
+              '(id, text) for one role on a candidate\'s CV, order them by ' +
+              'relevance to this job — this is primarily a REORDERING task, ' +
+              'not a filtering one. Only omit a bullet if it is genuinely ' +
+              'irrelevant to this kind of role in general, not merely less ' +
+              'directly related to this specific job than the others. Keep ' +
+              'at least half of the given bullets (rounding up), and keep ' +
+              'all of them if there are 3 or fewer to begin with — a role ' +
+              'represented by only one or two bullets looks thin and ' +
+              'under-qualified on a CV, no matter how well-matched that one ' +
+              "bullet is. When unsure whether to keep a bullet, keep it " +
+              '(ordered lower) rather than cut it. Never invent an id or ' +
+              'bullet text. Respond with JSON: {"bullet_ids": ["..."]}',
             `${jobContext}\n\nRole: ${entry.job_title} at ${entry.employer}\n` +
               `Bullets:\n${bulletsPayload}`,
           );
@@ -709,9 +716,17 @@ Deno.serve(async (req) => {
         // light wording tweak genuinely aligns it with the job description.
         const res = await callBedrock(
           'Given a job and a list of achievement/responsibility bullets ' +
-            '(id, text) for one role on a candidate\'s CV, choose which are ' +
-            'relevant to this job and order them by relevance. Keep enough ' +
-            "to represent the role well; omit ones that clearly don't fit. " +
+            '(id, text) for one role on a candidate\'s CV, order them by ' +
+            'relevance to this job — this is primarily a REORDERING task, ' +
+            'not a filtering one. Only omit a bullet if it is genuinely ' +
+            'irrelevant to this kind of role in general, not merely less ' +
+            'directly related to this specific job than the others. Keep ' +
+            'at least half of the given bullets (rounding up), and keep ' +
+            'all of them if there are 3 or fewer to begin with — a role ' +
+            'represented by only one or two bullets looks thin and ' +
+            'under-qualified on a CV, no matter how well-matched that one ' +
+            'bullet is. When unsure whether to keep a bullet, keep it ' +
+            '(ordered lower) rather than cut it. ' +
             'For each selected bullet, return its id and its text: copy the ' +
             'text unchanged unless a light wording tweak would align it ' +
             "closer to the job description's own terminology, in which case " +
