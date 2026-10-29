@@ -1049,6 +1049,21 @@ body {
   color: #eab308;
 }
 
+.job-card-salary-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  white-space: normal;
+}
+
+.job-card-salary-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Shared by the job-card and job-detail match-rating circles — the
    background color itself is set inline per score (a continuous hue
    ramp), not via CSS, so only shape/sizing/text live here. */

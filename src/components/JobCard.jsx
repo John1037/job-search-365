@@ -3,8 +3,9 @@ import { formatSalary, formatLocation, statusBadgeClass } from '../jobFormat';
 import MatchRatingBadge from './MatchRatingBadge';
 
 function JobCard({ job, children }) {
-  const salary = formatSalary(job);
+  const salary = formatSalary(job, { includeBasis: false });
   const location = formatLocation(job);
+  const salaryLocation = [salary, location].filter(Boolean).join(' · ');
 
   return (
     <li className="job-card">
@@ -13,25 +14,26 @@ function JobCard({ job, children }) {
           <Link to={`/jobs/${job.id}`} className="job-card-title">
             {job.job_title}
           </Link>
-          {job.favorite_level != null ? (
-            <span
-              className="job-card-favorite-stars"
-              aria-label={
-                job.favorite_level === 2 ? 'Marked Favorite' : 'Marked Preferred'
-              }
-            >
-              {'★'.repeat(job.favorite_level)}
-            </span>
-          ) : (
-            <MatchRatingBadge score={job.match_score} size="card" />
-          )}
+          <MatchRatingBadge score={job.match_score} size="card" />
         </div>
 
         <span className="item-name">
           <span className="item-subtext">{job.employer}</span>
-          {(salary || location) && (
-            <span className="item-subtext">
-              {[salary, location].filter(Boolean).join(' · ')}
+          {(salaryLocation || job.favorite_level != null) && (
+            <span className="item-subtext job-card-salary-row">
+              <span className="job-card-salary-text">{salaryLocation}</span>
+              {job.favorite_level != null && (
+                <span
+                  className="job-card-favorite-stars"
+                  aria-label={
+                    job.favorite_level === 2
+                      ? 'Marked Favorite'
+                      : 'Marked Preferred'
+                  }
+                >
+                  {'★'.repeat(job.favorite_level)}
+                </span>
+              )}
             </span>
           )}
         </span>
