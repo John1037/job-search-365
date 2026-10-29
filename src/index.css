@@ -194,6 +194,12 @@ body {
   margin: 4px 0 0;
 }
 
+.form-success {
+  color: var(--success-text);
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+
 .form-message {
   color: var(--accent);
   font-size: 14px;
@@ -2609,6 +2615,13 @@ body {
   background: var(--bg);
   color: var(--text);
   resize: vertical;
+}
+
+.cv-page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .cv-section-actions {

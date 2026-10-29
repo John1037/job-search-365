@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { formatCvDateRange } from '../jobFormat';
+import { getFunctionErrorMessage } from '../functionError';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ExperienceDialog from '../components/ExperienceDialog';
 import EducationDialog from '../components/EducationDialog';
@@ -52,6 +53,10 @@ function CvComponents() {
     useState(null);
 
   const [importDialogOpen, setImportDialogOpen] = useState(false);
+
+  const [recalculating, setRecalculating] = useState(false);
+  const [recalcMessage, setRecalcMessage] = useState(null);
+  const [recalcError, setRecalcError] = useState(null);
 
   const experienceSectionRef = useRef(null);
   const educationSectionRef = useRef(null);
@@ -142,6 +147,40 @@ function CvComponents() {
   useEffect(() => {
     loadAll();
   }, []);
+
+  async function handleRecalculateMatchRatings() {
+    setRecalculating(true);
+    setRecalcMessage(null);
+    setRecalcError(null);
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      setRecalcError('Not signed in.');
+      setRecalculating(false);
+      return;
+    }
+
+    const { data, error: fnError } = await supabase.functions.invoke(
+      'recalculate-match-ratings',
+      { headers: { Authorization: `Bearer ${session.access_token}` } },
+    );
+
+    if (fnError) {
+      setRecalcError(await getFunctionErrorMessage(fnError));
+    } else {
+      const { total, succeeded, failed } = data;
+      setRecalcMessage(
+        failed > 0
+          ? `Recalculated ${succeeded} of ${total} open jobs (${failed} failed).`
+          : `Recalculated match scores for ${succeeded} open job${succeeded === 1 ? '' : 's'}.`,
+      );
+    }
+
+    setRecalculating(false);
+  }
 
   async function handleSaveSummary() {
     setSavingSummary(true);
@@ -610,13 +649,27 @@ function CvComponents() {
         </div>
       </section>
 
-      <button
-        type="button"
-        className="button-outline"
-        onClick={() => navigate('/main')}
-      >
-        Back to home
-      </button>
+      <div className="cv-page-footer">
+        <button
+          type="button"
+          className="button-outline"
+          onClick={() => navigate('/main')}
+        >
+          Back to home
+        </button>
+
+        <button
+          type="button"
+          className="button-positive"
+          disabled={recalculating}
+          onClick={handleRecalculateMatchRatings}
+        >
+          {recalculating ? 'Recalculating…' : 'Recalculate match scores'}
+        </button>
+      </div>
+
+      {recalcMessage && <p className="form-success">{recalcMessage}</p>}
+      {recalcError && <p className="form-error">{recalcError}</p>}
 
       <ExperienceDialog
         open={experienceDialogOpen}
