@@ -448,6 +448,36 @@ Deno.serve(async (req) => {
     'more-impressive version of it. If a genuinely honest wording match ' +
     "isn't there, leave the original wording as-is rather than forcing one.";
 
+  // Shared by every "order by relevance, then decide what to omit" task
+  // below (bullets, education items, certification items) — a worked
+  // example of judging each item on its own merits rather than filling
+  // whatever omission cap is allowed, the one technique that's actually
+  // worked reliably in this file before (the CV-import skills-extraction
+  // prompt). Phrased generically ("items") so it reads naturally whether
+  // it's prepended to a bullets, education, or certification prompt.
+  const omitCapWorkedExample =
+    '\n\nWorked example of applying this standard — a Customer Support ' +
+    "Team Lead's items, given for a Marketing Manager job (6 items, so " +
+    'up to 3 may be omitted — but the right answer here only omits 1, ' +
+    'since most of these are still genuinely relevant):\n' +
+    '1. "Led a team of 8 support agents handling 200+ daily tickets" — ' +
+    'keep, transferable leadership and scale.\n' +
+    '2. "Reduced average response time 35% through process ' +
+    'improvements" — keep, a measurable impact claim.\n' +
+    '3. "Coordinated with product and engineering teams to escalate ' +
+    'recurring issues" — keep, cross-functional collaboration is ' +
+    'directly relevant.\n' +
+    '4. "Trained new hires on support software and company ' +
+    'tone-of-voice guidelines" — keep, tone-of-voice ties to brand ' +
+    'messaging.\n' +
+    '5. "Monitored support SLA compliance and reported weekly to ' +
+    'leadership" — keep, reporting/ownership signal still transfers.\n' +
+    '6. "Organized the team\'s annual off-site event" — omit, genuinely ' +
+    'unrelated to a marketing role and the weakest of the six.\n' +
+    'Only one was actually weak enough to cut, even though up to three ' +
+    'were allowed — that\'s the standard to apply: judge each item on ' +
+    'its own merits rather than filling the cap.';
+
   // Defensive fallbacks (include-everything) if a given call fails or
   // returns nothing usable — a build should still produce something
   // sensible rather than silently dropping a whole section.
@@ -726,9 +756,12 @@ Deno.serve(async (req) => {
               '3. Omitting up to that maximum is never required — if ' +
               'every bullet is genuinely worth keeping, keep them all. ' +
               'Never omit a bullet just to reach the maximum, and never ' +
-              'omit more than the maximum allows. Never invent an id or ' +
-              'bullet text. Respond with JSON: {"bullet_ids": ["..."]}',
+              'omit more than the maximum allows.' +
+              omitCapWorkedExample +
+              ' Never invent an id or bullet text. Respond with JSON: ' +
+              '{"bullet_ids": ["..."]}',
             `${jobContext}\n\nRole: ${entry.job_title} at ${entry.employer}\n` +
+              `There are ${bullets.length} bullets below.\n` +
               `Bullets:\n${bulletsPayload}`,
           );
           const ids = Array.isArray(res?.bullet_ids) ? res.bullet_ids : null;
@@ -781,16 +814,18 @@ Deno.serve(async (req) => {
             '3. Omitting up to that maximum is never required — if ' +
             'every bullet is genuinely worth keeping, keep them all. ' +
             'Never omit a bullet just to reach the maximum, and never ' +
-            'omit more than the maximum allows. ' +
-            'For each selected bullet, return its id and its text: copy the ' +
-            'text unchanged unless a light wording tweak would align it ' +
-            "closer to the job description's own terminology, in which case " +
-            'return that reworded version instead.' +
+            'omit more than the maximum allows.' +
+            omitCapWorkedExample +
+            ' For each selected bullet, return its id and its text: copy ' +
+            'the text unchanged unless a light wording tweak would align ' +
+            "it closer to the job description's own terminology, in " +
+            'which case return that reworded version instead.' +
             rewordInstruction +
             ' Never invent an id, and never return a bullet for an id that ' +
             "wasn't given. Respond with JSON: " +
             '{"bullets": [{"id": "...", "text": "..."}]}',
           `${jobContext}\n\nRole: ${entry.job_title} at ${entry.employer}\n` +
+            `There are ${bullets.length} bullets below.\n` +
             `Bullets:\n${bulletsPayload}`,
         );
         const items = Array.isArray(res?.bullets) ? res.bullets : null;
@@ -893,10 +928,12 @@ Deno.serve(async (req) => {
             'omit at most 3. Omitting up to that maximum is never ' +
             'required — if every line is genuinely worth keeping, keep ' +
             'them all. Never omit a line just to reach the maximum, and ' +
-            'never omit more than the maximum allows. Never invent an id. ' +
-            'Respond with JSON: {"item_ids": ["..."]}',
+            'never omit more than the maximum allows.' +
+            omitCapWorkedExample +
+            ' Never invent an id. Respond with JSON: {"item_ids": ["..."]}',
           `${jobContext}\n\nQualification: ${entry.level}` +
             `${entry.subject ? ` in ${entry.subject}` : ''} at ${entry.establishment}\n` +
+            `There are ${items.length} detail lines below.\n` +
             `Details:\n${JSON.stringify(items.map((it) => ({ id: it.id, text: it.detail_text })))}`,
         );
         const ids = Array.isArray(res?.item_ids) ? res.item_ids : null;
@@ -952,9 +989,11 @@ Deno.serve(async (req) => {
             '3. Omitting up to that maximum is never required — if every ' +
             'line is genuinely worth keeping, keep them all. Never omit a ' +
             'line just to reach the maximum, and never omit more than the ' +
-            'maximum allows. Never invent an id. Respond with JSON: ' +
-            '{"item_ids": ["..."]}',
+            'maximum allows.' +
+            omitCapWorkedExample +
+            ' Never invent an id. Respond with JSON: {"item_ids": ["..."]}',
           `${jobContext}\n\nCertification: ${entry.title} from ${entry.issuer}\n` +
+            `There are ${items.length} detail lines below.\n` +
             `Details:\n${JSON.stringify(items.map((it) => ({ id: it.id, text: it.detail_text })))}`,
         );
         const ids = Array.isArray(res?.item_ids) ? res.item_ids : null;
