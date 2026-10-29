@@ -12,7 +12,7 @@ function MatchRatingBadge({ score, size = 'card' }) {
   return (
     <span
       className={`match-rating-badge match-rating-badge-${size}`}
-      style={{ backgroundColor: scoreToColor(score) }}
+      style={{ borderColor: scoreToColor(score) }}
       aria-label={`CV match rating: ${score} out of 100`}
       title={`CV match rating: ${score}/100`}
     >
