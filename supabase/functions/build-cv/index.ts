@@ -676,19 +676,19 @@ Deno.serve(async (req) => {
           const res = await callBedrock(
             'Given a job and a list of achievement/responsibility bullets ' +
               '(id, text) for one role on a candidate\'s CV, order them by ' +
-              'relevance to this job, then decide which to include. Being ' +
-              'less closely tied to this specific job than other bullets is ' +
-              'not by itself a reason to omit one — only omit a bullet if ' +
-              "it's genuinely irrelevant to this kind of role, adds nothing " +
-              'a kept bullet doesn\'t already cover, or is clearly weaker ' +
-              'than the others — real filtering is expected, not just ' +
-              'reordering. The one hard floor: never reduce a role to fewer ' +
-              'than 2 bullets (keep both/all if there are 2 or fewer to ' +
-              'begin with) — a role represented by a single bullet looks ' +
-              'thin and under-qualified on a CV no matter how well-matched ' +
-              'that bullet is. Above that floor, use real judgment rather ' +
-              'than defaulting to keeping everything. Never invent an id ' +
-              'or bullet text. Respond with JSON: {"bullet_ids": ["..."]}',
+              'relevance to this job, then decide which to include. Only ' +
+              "omit a bullet if it's genuinely not worth including — " +
+              'irrelevant to this kind of role, redundant with one you\'re ' +
+              'keeping, or clearly weaker than the others. How many you ' +
+              'MAY omit depends strictly on how many bullets are given, as ' +
+              'a maximum, never a target to reach: 3 or fewer bullets — ' +
+              'omit none, keep all of them. 4 bullets — omit at most 1. 5 ' +
+              'bullets — omit at most 2. 6 or more bullets — omit at most ' +
+              '3. Omitting up to that maximum is never required — if ' +
+              'every bullet is genuinely worth keeping, keep them all. ' +
+              'Never omit a bullet just to reach the maximum, and never ' +
+              'omit more than the maximum allows. Never invent an id or ' +
+              'bullet text. Respond with JSON: {"bullet_ids": ["..."]}',
             `${jobContext}\n\nRole: ${entry.job_title} at ${entry.employer}\n` +
               `Bullets:\n${bulletsPayload}`,
           );
@@ -719,18 +719,18 @@ Deno.serve(async (req) => {
         const res = await callBedrock(
           'Given a job and a list of achievement/responsibility bullets ' +
             '(id, text) for one role on a candidate\'s CV, order them by ' +
-            'relevance to this job, then decide which to include. Being ' +
-            'less closely tied to this specific job than other bullets is ' +
-            'not by itself a reason to omit one — only omit a bullet if ' +
-            "it's genuinely irrelevant to this kind of role, adds nothing " +
-            'a kept bullet doesn\'t already cover, or is clearly weaker ' +
-            'than the others — real filtering is expected, not just ' +
-            'reordering. The one hard floor: never reduce a role to fewer ' +
-            'than 2 bullets (keep both/all if there are 2 or fewer to ' +
-            'begin with) — a role represented by a single bullet looks ' +
-            'thin and under-qualified on a CV no matter how well-matched ' +
-            'that bullet is. Above that floor, use real judgment rather ' +
-            'than defaulting to keeping everything. ' +
+            'relevance to this job, then decide which to include. Only ' +
+            "omit a bullet if it's genuinely not worth including — " +
+            'irrelevant to this kind of role, redundant with one you\'re ' +
+            'keeping, or clearly weaker than the others. How many you ' +
+            'MAY omit depends strictly on how many bullets are given, as ' +
+            'a maximum, never a target to reach: 3 or fewer bullets — ' +
+            'omit none, keep all of them. 4 bullets — omit at most 1. 5 ' +
+            'bullets — omit at most 2. 6 or more bullets — omit at most ' +
+            '3. Omitting up to that maximum is never required — if ' +
+            'every bullet is genuinely worth keeping, keep them all. ' +
+            'Never omit a bullet just to reach the maximum, and never ' +
+            'omit more than the maximum allows. ' +
             'For each selected bullet, return its id and its text: copy the ' +
             'text unchanged unless a light wording tweak would align it ' +
             "closer to the job description's own terminology, in which case " +
@@ -821,16 +821,17 @@ Deno.serve(async (req) => {
         const res = await callBedrock(
           'Given a job and a list of qualification detail lines (id, text) ' +
             'for one education entry, order them by relevance to this job, ' +
-            'then decide which to include. Being less closely tied to this ' +
-            'specific job than other lines is not by itself a reason to ' +
-            "omit one — only omit a line if it's genuinely irrelevant in " +
-            'general, adds nothing a kept line doesn\'t already cover, or ' +
-            'is clearly weaker than the others — real filtering is ' +
-            'expected, not just reordering. The one hard floor: never ' +
-            'reduce an entry to fewer than 2 lines (keep both/all if there ' +
-            'are 2 or fewer to begin with) — an entry reduced to a single ' +
-            'line looks thin. Above that floor, use real judgment rather ' +
-            'than defaulting to keeping everything. Never invent an id. ' +
+            "then decide which to include. Only omit a line if it's " +
+            'genuinely not worth including — irrelevant in general, ' +
+            'redundant with one you\'re keeping, or clearly weaker than ' +
+            'the others. How many you MAY omit depends strictly on how ' +
+            'many lines are given, as a maximum, never a target to reach: ' +
+            '3 or fewer lines — omit none, keep all of them. 4 lines — ' +
+            'omit at most 1. 5 lines — omit at most 2. 6 or more lines — ' +
+            'omit at most 3. Omitting up to that maximum is never ' +
+            'required — if every line is genuinely worth keeping, keep ' +
+            'them all. Never omit a line just to reach the maximum, and ' +
+            'never omit more than the maximum allows. Never invent an id. ' +
             'Respond with JSON: {"item_ids": ["..."]}',
           `${jobContext}\n\nQualification: ${entry.level}` +
             `${entry.subject ? ` in ${entry.subject}` : ''} at ${entry.establishment}\n` +
@@ -868,17 +869,18 @@ Deno.serve(async (req) => {
         const res = await callBedrock(
           'Given a job and a list of detail lines (id, text) for one ' +
             'certification, order them by relevance to this job, then ' +
-            'decide which to include. Being less closely tied to this ' +
-            'specific job than other lines is not by itself a reason to ' +
-            "omit one — only omit a line if it's genuinely irrelevant in " +
-            'general, adds nothing a kept line doesn\'t already cover, or ' +
-            'is clearly weaker than the others — real filtering is ' +
-            'expected, not just reordering. The one hard floor: never ' +
-            'reduce an entry to fewer than 2 lines (keep both/all if there ' +
-            'are 2 or fewer to begin with) — an entry reduced to a single ' +
-            'line looks thin. Above that floor, use real judgment rather ' +
-            'than defaulting to keeping everything. Never invent an id. ' +
-            'Respond with JSON: {"item_ids": ["..."]}',
+            "decide which to include. Only omit a line if it's genuinely " +
+            'not worth including — irrelevant in general, redundant with ' +
+            'one you\'re keeping, or clearly weaker than the others. How ' +
+            'many you MAY omit depends strictly on how many lines are ' +
+            'given, as a maximum, never a target to reach: 3 or fewer ' +
+            'lines — omit none, keep all of them. 4 lines — omit at most ' +
+            '1. 5 lines — omit at most 2. 6 or more lines — omit at most ' +
+            '3. Omitting up to that maximum is never required — if every ' +
+            'line is genuinely worth keeping, keep them all. Never omit a ' +
+            'line just to reach the maximum, and never omit more than the ' +
+            'maximum allows. Never invent an id. Respond with JSON: ' +
+            '{"item_ids": ["..."]}',
           `${jobContext}\n\nCertification: ${entry.title} from ${entry.issuer}\n` +
             `Details:\n${JSON.stringify(items.map((it) => ({ id: it.id, text: it.detail_text })))}`,
         );
