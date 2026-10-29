@@ -816,8 +816,15 @@ Deno.serve(async (req) => {
       (async () => {
         const res = await callBedrock(
           'Given a job and a list of qualification detail lines (id, text) ' +
-            'for one education entry, choose which are relevant to this job ' +
-            'and order them by relevance. Never invent an id. Respond with ' +
+            'for one education entry, order them by relevance to this job ' +
+            '— this is primarily a REORDERING task, not a filtering one. ' +
+            'Only omit a line if it is genuinely irrelevant in general, not ' +
+            'merely less directly related to this specific job than the ' +
+            'others. Keep at least half of the given lines (rounding up), ' +
+            'and keep all of them if there are 3 or fewer to begin with — ' +
+            'an entry reduced to one line looks thin, no matter how ' +
+            'well-matched that line is. When unsure, keep it (ordered ' +
+            'lower) rather than cut it. Never invent an id. Respond with ' +
             'JSON: {"item_ids": ["..."]}',
           `${jobContext}\n\nQualification: ${entry.level}` +
             `${entry.subject ? ` in ${entry.subject}` : ''} at ${entry.establishment}\n` +
@@ -854,8 +861,15 @@ Deno.serve(async (req) => {
       (async () => {
         const res = await callBedrock(
           'Given a job and a list of detail lines (id, text) for one ' +
-            'certification, choose which are relevant to this job and order ' +
-            'them by relevance. Never invent an id. Respond with JSON: ' +
+            'certification, order them by relevance to this job — this is ' +
+            'primarily a REORDERING task, not a filtering one. Only omit a ' +
+            'line if it is genuinely irrelevant in general, not merely less ' +
+            'directly related to this specific job than the others. Keep ' +
+            'at least half of the given lines (rounding up), and keep all ' +
+            'of them if there are 3 or fewer to begin with — an entry ' +
+            'reduced to one line looks thin, no matter how well-matched ' +
+            'that line is. When unsure, keep it (ordered lower) rather ' +
+            'than cut it. Never invent an id. Respond with JSON: ' +
             '{"item_ids": ["..."]}',
           `${jobContext}\n\nCertification: ${entry.title} from ${entry.issuer}\n` +
             `Details:\n${JSON.stringify(items.map((it) => ({ id: it.id, text: it.detail_text })))}`,
