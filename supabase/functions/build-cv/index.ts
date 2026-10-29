@@ -469,6 +469,45 @@ Deno.serve(async (req) => {
   // fallback happening invisibly.
   const fallbackWarnings: string[] = [];
 
+  // Several prompt-wording attempts at getting the model to self-limit how
+  // much it omits from a list (bullets/education/certification items) each
+  // failed in a different way — too strict, then over-correcting to
+  // "include everything", then anchoring on a stated floor as if it were
+  // the answer, then blowing straight through an explicit stated maximum.
+  // Enforced here in code instead, deterministically, rather than trusting
+  // further prompt wording: at most 0/1/2/3 omissions for an original list
+  // of <=3/4/5/6+ items respectively — exactly the rule given, applied
+  // regardless of what the model actually returns.
+  function maxOmitFor(total: number): number {
+    if (total <= 3) return 0;
+    if (total === 4) return 1;
+    if (total === 5) return 2;
+    return 3;
+  }
+
+  // If the model omitted more than maxOmitFor(total) allows, tops back up
+  // to the minimum by appending more of the original items (in their given
+  // order) that weren't already selected — never removes anything the
+  // model did select.
+  function enforceOmitCap<T extends { id: string }>(
+    selectedIds: string[],
+    allItems: T[],
+  ): string[] {
+    const minKeep = allItems.length - maxOmitFor(allItems.length);
+    if (selectedIds.length >= minKeep) return selectedIds;
+
+    const result = [...selectedIds];
+    const chosen = new Set(result);
+    for (const item of allItems) {
+      if (result.length >= minKeep) break;
+      if (!chosen.has(item.id)) {
+        result.push(item.id);
+        chosen.add(item.id);
+      }
+    }
+    return result;
+  }
+
   const tasks: Promise<void>[] = [];
 
   if (skills.length > 0) {
@@ -705,11 +744,23 @@ Deno.serve(async (req) => {
                 'through — all bullets for that role were included instead ' +
                 'of a tailored subset.',
             );
+            bulletSelectionByExperience.set(entry.id, bullets.map((b) => b.id));
+            return;
           }
-          bulletSelectionByExperience.set(
-            entry.id,
-            filtered.length > 0 ? filtered : bullets.map((b) => b.id),
-          );
+
+          const finalIds = enforceOmitCap(filtered, bullets);
+          if (finalIds.length > filtered.length) {
+            console.log(
+              `[build-cv] bullet selection for "${entry.job_title}" ` +
+                `returned ${filtered.length} of ${bullets.length}, below ` +
+                `the allowed maximum omission — topped up to ${finalIds.length}.`,
+            );
+            fallbackWarnings.push(
+              `Bullet selection for "${entry.job_title}" omitted more than ` +
+                'allowed — some bullets it left out were added back in.',
+            );
+          }
+          bulletSelectionByExperience.set(entry.id, finalIds);
           return;
         }
 
@@ -753,10 +804,21 @@ Deno.serve(async (req) => {
         );
 
         if (filteredItems.length > 0) {
-          bulletSelectionByExperience.set(
-            entry.id,
-            filteredItems.map((it) => it.id),
-          );
+          const selectedIds = filteredItems.map((it) => it.id);
+          const finalIds = enforceOmitCap(selectedIds, bullets);
+          if (finalIds.length > selectedIds.length) {
+            console.log(
+              `[build-cv] reworded bullet selection for "${entry.job_title}" ` +
+                `returned ${selectedIds.length} of ${bullets.length}, below ` +
+                `the allowed maximum omission — topped up to ${finalIds.length} ` +
+                '(topped-up bullets render unreworded).',
+            );
+            fallbackWarnings.push(
+              `Bullet selection for "${entry.job_title}" omitted more than ` +
+                'allowed — some bullets it left out were added back in.',
+            );
+          }
+          bulletSelectionByExperience.set(entry.id, finalIds);
           bulletRewordByExperience.set(
             entry.id,
             new Map(filteredItems.map((it) => [it.id, it.text.trim()])),
@@ -851,11 +913,22 @@ Deno.serve(async (req) => {
               'through — all details for that entry were included instead ' +
               'of a tailored subset.',
           );
+          itemSelectionByEducation.set(entry.id, items.map((it) => it.id));
+        } else {
+          const finalIds = enforceOmitCap(filtered, items);
+          if (finalIds.length > filtered.length) {
+            console.log(
+              `[build-cv] education item selection for "${entry.establishment}" ` +
+                `returned ${filtered.length} of ${items.length}, below the ` +
+                `allowed maximum omission — topped up to ${finalIds.length}.`,
+            );
+            fallbackWarnings.push(
+              `Detail selection for "${entry.establishment}" omitted more ` +
+                'than allowed — some details it left out were added back in.',
+            );
+          }
+          itemSelectionByEducation.set(entry.id, finalIds);
         }
-        itemSelectionByEducation.set(
-          entry.id,
-          filtered.length > 0 ? filtered : items.map((it) => it.id),
-        );
       })(),
     );
   }
@@ -898,11 +971,22 @@ Deno.serve(async (req) => {
               'all details for that entry were included instead of a ' +
               'tailored subset.',
           );
+          itemSelectionByCertification.set(entry.id, items.map((it) => it.id));
+        } else {
+          const finalIds = enforceOmitCap(filtered, items);
+          if (finalIds.length > filtered.length) {
+            console.log(
+              `[build-cv] certification item selection for "${entry.title}" ` +
+                `returned ${filtered.length} of ${items.length}, below the ` +
+                `allowed maximum omission — topped up to ${finalIds.length}.`,
+            );
+            fallbackWarnings.push(
+              `Detail selection for "${entry.title}" omitted more than ` +
+                'allowed — some details it left out were added back in.',
+            );
+          }
+          itemSelectionByCertification.set(entry.id, finalIds);
         }
-        itemSelectionByCertification.set(
-          entry.id,
-          filtered.length > 0 ? filtered : items.map((it) => it.id),
-        );
       })(),
     );
   }
