@@ -4,6 +4,7 @@ import LoadingBar from './LoadingBar';
 import BulletListEditor from './BulletListEditor';
 import CvTemplateThumbnail from './CvTemplateThumbnail';
 import { supabase } from '../supabaseClient';
+import { getFunctionErrorMessage } from '../functionError';
 import { CV_TEMPLATES, getTemplate } from '../cvTemplates/templates';
 import {
   renderCvPdf,
@@ -211,7 +212,7 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
     setLoading(false);
 
     if (fnError) {
-      setError(fnError.message);
+      setError(await getFunctionErrorMessage(fnError));
       return;
     }
 

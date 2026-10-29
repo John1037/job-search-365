@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { getFunctionErrorMessage } from '../functionError';
 import { getAvailableEventNames, statusBadgeClass } from '../jobFormat';
 import { addJobEvent } from '../jobEvents';
 import AddEventDialog from '../components/AddEventDialog';
@@ -126,7 +127,7 @@ function Inbox() {
     setDisconnectPending(false);
 
     if (fnError) {
-      setError(fnError.message);
+      setError(await getFunctionErrorMessage(fnError));
       return;
     }
 
@@ -159,7 +160,7 @@ function Inbox() {
     setScanning(false);
 
     if (fnError) {
-      setError(fnError.message);
+      setError(await getFunctionErrorMessage(fnError));
       return;
     }
 

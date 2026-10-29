@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { getFunctionErrorMessage } from '../functionError';
 import PhoneField from '../components/PhoneField';
 import AvatarUpload from '../components/AvatarUpload';
 import DeleteAccountDialog from '../components/DeleteAccountDialog';
@@ -207,7 +208,7 @@ function EditProfile() {
     });
 
     if (functionError) {
-      return { error: functionError.message };
+      return { error: await getFunctionErrorMessage(functionError) };
     }
 
     console.log('[delete-account] signing out');

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Modal from './Modal';
 import LoadingBar from './LoadingBar';
 import { supabase } from '../supabaseClient';
+import { getFunctionErrorMessage } from '../functionError';
 import { sanitizeFileNamePart } from '../fileNaming';
 
 // Loaded on demand (only when a letter is actually saved) since jsPDF adds
@@ -68,7 +69,7 @@ function GenerateCoverLetterDialog({ open, onClose, jobId, employer, onSave }) {
       );
 
       if (fnError) {
-        setError(fnError.message);
+        setError(await getFunctionErrorMessage(fnError));
       } else {
         setDraft(data.draft);
       }

@@ -3,6 +3,7 @@ import Modal from './Modal';
 import LoadingBar from './LoadingBar';
 import BulletListEditor from './BulletListEditor';
 import { supabase } from '../supabaseClient';
+import { getFunctionErrorMessage } from '../functionError';
 import { formatCvDateRange } from '../jobFormat';
 
 function toEditableList(strings) {
@@ -83,7 +84,7 @@ function ImportCvDialog({ open, onClose, onImported, existingSkills, existingPro
       });
 
       if (fnError) {
-        setError(fnError.message);
+        setError(await getFunctionErrorMessage(fnError));
         setExtracting(false);
         return;
       }

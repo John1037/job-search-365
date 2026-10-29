@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Modal from './Modal';
 import LoadingBar from './LoadingBar';
 import { supabase } from '../supabaseClient';
+import { getFunctionErrorMessage } from '../functionError';
 
 const SALARY_TYPES = ['annual', 'monthly', 'weekly', 'hourly'];
 const EMPLOYMENT_TYPES = ['full_time', 'part_time'];
@@ -51,7 +52,7 @@ function AddJobDialog({ open, onClose }) {
     );
 
     if (fnError) {
-      setError(fnError.message);
+      setError(await getFunctionErrorMessage(fnError));
       setLoading(false);
       return;
     }

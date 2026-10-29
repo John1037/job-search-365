@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { getFunctionErrorMessage } from '../functionError';
 
 const GMAIL_OAUTH_STATE_KEY = 'gmail_oauth_state';
 
@@ -64,7 +65,7 @@ function InboxCallback() {
       );
 
       if (fnError) {
-        setError(fnError.message);
+        setError(await getFunctionErrorMessage(fnError));
         return;
       }
 
