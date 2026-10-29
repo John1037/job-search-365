@@ -7,6 +7,7 @@ export const SORT_FIELDS = [
   { value: 'status_updated_at', label: 'Last status update' },
   { value: 'salary_min', label: 'Salary (min)' },
   { value: 'salary_max', label: 'Salary (max)' },
+  { value: 'match_score', label: 'Match score' },
 ];
 
 export const MAX_SORT_LEVELS = 3;
@@ -25,7 +26,12 @@ export function sortFieldLabel(field) {
 function compareByField(a, b, field, direction) {
   const multiplier = direction === 'desc' ? -1 : 1;
 
-  if (field === 'salary_min' || field === 'salary_max' || field === 'favorite_level') {
+  if (
+    field === 'salary_min' ||
+    field === 'salary_max' ||
+    field === 'favorite_level' ||
+    field === 'match_score'
+  ) {
     const av = a[field];
     const bv = b[field];
     if (av == null && bv == null) return 0;
