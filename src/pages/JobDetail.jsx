@@ -166,8 +166,16 @@ function JobDetail() {
     load();
   }, [id]);
 
-  async function handleSaveDetails(e) {
-    e.preventDefault();
+  // Shared by the form's own submit button and by the Build CV/Generate
+  // cover letter buttons below, which save silently first rather than
+  // trusting the user to have clicked "Save details" themselves — those
+  // two gate on the live `description` field (so typing one in enables the
+  // button immediately), but build-cv/generate-cover-letter read from the
+  // database, not this form's state. Without this, typing a description
+  // and clicking straight through to one of those buttons would build
+  // against whatever was last actually saved (possibly nothing), not what
+  // the field on screen shows.
+  async function saveDetails() {
     setSaving(true);
     setSaveMessage(null);
     setError(null);
@@ -206,11 +214,25 @@ function JobDetail() {
 
     if (updateError) {
       setError(updateError.message);
-      return;
+      return false;
     }
 
     setJob((j) => ({ ...j, ...updates }));
     setSaveMessage('Details saved.');
+    return true;
+  }
+
+  async function handleSaveDetails(e) {
+    e.preventDefault();
+    await saveDetails();
+  }
+
+  async function openCoverLetterDialog() {
+    if (await saveDetails()) setCoverLetterDialogOpen(true);
+  }
+
+  async function openBuildCvDialog() {
+    if (await saveDetails()) setBuildCvDialogOpen(true);
   }
 
   async function handleAddEvent(eventInput) {
@@ -868,18 +890,18 @@ function JobDetail() {
                 <button
                   type="button"
                   className="button-secondary"
-                  disabled={!canGenerateCoverLetter}
-                  onClick={() => setCoverLetterDialogOpen(true)}
+                  disabled={!canGenerateCoverLetter || saving}
+                  onClick={openCoverLetterDialog}
                 >
-                  Suggest cover letter
+                  {saving ? 'Saving…' : 'Suggest cover letter'}
                 </button>
                 <button
                   type="button"
                   className="button-secondary"
-                  disabled={!canBuildCv}
-                  onClick={() => setBuildCvDialogOpen(true)}
+                  disabled={!canBuildCv || saving}
+                  onClick={openBuildCvDialog}
                 >
-                  Build {cvWord}
+                  {saving ? 'Saving…' : `Build ${cvWord}`}
                 </button>
                 {coverLetterHint && (
                   <p className="field-hint">{coverLetterHint}</p>
