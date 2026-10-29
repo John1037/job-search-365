@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { formatSalary, formatLocation, statusBadgeClass } from '../jobFormat';
+import MatchRatingBadge from './MatchRatingBadge';
 
 function JobCard({ job, children }) {
   const salary = formatSalary(job);
@@ -12,7 +13,7 @@ function JobCard({ job, children }) {
           <Link to={`/jobs/${job.id}`} className="job-card-title">
             {job.job_title}
           </Link>
-          {job.favorite_level != null && (
+          {job.favorite_level != null ? (
             <span
               className="job-card-favorite-stars"
               aria-label={
@@ -21,6 +22,8 @@ function JobCard({ job, children }) {
             >
               {'★'.repeat(job.favorite_level)}
             </span>
+          ) : (
+            <MatchRatingBadge score={job.match_score} size="card" />
           )}
         </div>
 

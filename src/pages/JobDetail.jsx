@@ -7,6 +7,7 @@ import ManageDocumentsDialog from '../components/ManageDocumentsDialog';
 import GenerateCoverLetterDialog from '../components/GenerateCoverLetterDialog';
 import BuildCvDialog from '../components/BuildCvDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
+import MatchRatingBadge from '../components/MatchRatingBadge';
 import {
   formatEventDateTime,
   formatStatusDate,
@@ -526,16 +527,19 @@ function JobDetail() {
           <h1>
             {job.job_title} — {job.employer}
           </h1>
-          <span
-            className="job-detail-favorite-stars"
-            aria-label={
-              job.favorite_level
-                ? `Marked ${job.favorite_level === 2 ? 'Favorite' : 'Preferred'}`
-                : undefined
-            }
-          >
-            {'★'.repeat(job.favorite_level ?? 0)}
-          </span>
+          <div className="job-detail-rating-group">
+            <span
+              className="job-detail-favorite-stars"
+              aria-label={
+                job.favorite_level
+                  ? `Marked ${job.favorite_level === 2 ? 'Favorite' : 'Preferred'}`
+                  : undefined
+              }
+            >
+              {'★'.repeat(job.favorite_level ?? 0)}
+            </span>
+            <MatchRatingBadge score={job.match_score} size="detail" />
+          </div>
         </div>
         <div className="status-with-date">
           <span className={`item-badge ${statusBadgeClass(job.status)}`}>

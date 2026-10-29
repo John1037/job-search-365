@@ -1043,6 +1043,32 @@ body {
   color: #eab308;
 }
 
+/* Shared by the job-card and job-detail match-rating circles — the
+   background color itself is set inline per score (a continuous hue
+   ramp), not via CSS, so only shape/sizing/text live here. */
+.match-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.match-rating-badge-card {
+  width: 28px;
+  height: 28px;
+  font-size: 11px;
+}
+
+.match-rating-badge-detail {
+  width: 36px;
+  height: 36px;
+  font-size: 13px;
+}
+
 .job-card-title {
   font-size: 16px;
   font-weight: 600;
@@ -1740,6 +1766,13 @@ body {
   align-items: baseline;
   gap: 12px;
   min-width: 0;
+}
+
+.job-detail-rating-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .job-detail-favorite-stars {
