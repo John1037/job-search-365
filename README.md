@@ -82,30 +82,51 @@ Live at [jobsearch365.com](https://jobsearch365.com).
   via a custom SMTP provider rather than Supabase's default limited mailer.
 - **Theme-aware UI** — full light/dark mode support, including third-party
   browser autofill styling.
-- **Embedded support chat widget** — a third-party chat widget (a separate
+- **Embedded support chatbot** — a third-party chat widget (a separate
   project, `chat365`) is embedded site-wide via a `<script>` tag in
-  `index.html`, backed by its own knowledge base (see `docs/knowledge-base/`
-  below).
+  `index.html`. Information-only, not agentic — it can't act on a user's
+  account, only answer questions — backed by a vector store with every
+  document in `docs/knowledge-base/` (below) embedded into it.
+- **Job match rating** — a 0-100 score, computed automatically whenever a
+  job's description is added or changed, scoring how well the user's CV
+  component library fits that job's actual requirements (not just keyword
+  overlap). Shown as a colored ring (red to green) on the job card and job
+  detail page; sortable as a field on Manage jobs. A manual "Recalculate
+  match scores" button (CV components page) re-scores every open job after
+  a CV library edit, since only a description change retriggers scoring
+  automatically.
+- **Admin activity dashboard** — a role-gated (`profiles.permission_level`:
+  user/admin/owner) page charting signups and key actions (jobs added/
+  deleted, events logged, documents deleted, CVs built, cover letters
+  composed, account deletions) over a selectable time range, backed by an
+  append-only activity log regular users can't read, write, or forge.
 
 ## Tech stack
 
 - **Frontend:** React 19 + Vite, React Router v7. No CSS framework — a
   single hand-written stylesheet with theme variables for light/dark mode.
+  Charts (admin activity dashboard) via [Recharts](https://recharts.org/).
 - **Backend:** [Supabase](https://supabase.com) — Postgres (RLS-scoped to
-  `auth.uid()` on every table), Auth (served from a custom domain,
+  `auth.uid()` on every table, with one deliberate role-based exception for
+  admin-readable activity logs), Auth (served from a custom domain,
   `auth.jobsearch365.com`, via Supabase's custom domain feature), Storage
   (avatars, documents), and Edge Functions (Deno) for account deletion,
-  email-change notifications, and several LLM-backed features (job import,
-  CV import, cover letter drafting, CV building, email-to-job matching).
+  email-change notifications, job-match scoring, and several LLM-backed
+  features (job import, CV import, cover letter drafting, CV building,
+  email-to-job matching). Database-triggered webhooks (email-change
+  notice, job-match scoring) call their Edge Function over `pg_net`,
+  authenticated with a shared secret read from Supabase Vault rather than
+  hardcoded in the trigger.
 - **AI:** [Amazon Bedrock](https://aws.amazon.com/bedrock/) (NVIDIA Nemotron
   3 Super, `eu-west-2`/London, for UK/EU data residency) for job-listing
-  extraction, CV import extraction, cover letter drafting, CV building, and
-  email-to-job matching — via Bedrock's OpenAI-compatible Chat Completions
-  endpoint, authenticated with a long-term Bedrock API key rather than
-  AWS-signed requests (many small, targeted calls per operation rather
-  than one large one, run concurrently under a shared limiter). PDF
-  text/layout extraction via [`unpdf`](https://github.com/unjs/unpdf); PDF
-  generation via [`jsPDF`](https://github.com/parallax/jsPDF).
+  extraction, CV import extraction, cover letter drafting, CV building,
+  job-match scoring, and email-to-job matching — via Bedrock's
+  OpenAI-compatible Chat Completions endpoint, authenticated with a
+  long-term Bedrock API key rather than AWS-signed requests (many small,
+  targeted calls per operation rather than one large one, run concurrently
+  under a shared limiter). PDF text/layout extraction via
+  [`unpdf`](https://github.com/unjs/unpdf); PDF generation via
+  [`jsPDF`](https://github.com/parallax/jsPDF).
 - **Gmail:** OAuth 2.0 (read-only `gmail.readonly` scope) + the Gmail API,
   called directly via `fetch()` rather than a client library.
 - **Email:** [Resend](https://resend.com) via custom SMTP, triggered
@@ -122,12 +143,13 @@ Live at [jobsearch365.com](https://jobsearch365.com).
 src/
   pages/          Route-level pages (Home, Welcome, ManageJobs, JobDetail,
                   AddJob, Documents, CvComponents, Settings, EditProfile,
-                  Landing, Signup, ...)
-  components/     Reusable UI: dialogs (Add event, Filter, Sort, Connect
-                  document, Add job / import from URL, Suggest cover
-                  letter, Build CV, Import CV, Experience/Education/
-                  Certification/Custom section, ...), JobCard, LoadingBar,
-                  form fields, layout chrome (nav, footer, chat widget host)
+                  AdminActivity, Landing, Signup, ...)
+  components/     Reusable UI: dialogs (Add event, Event details, Filter,
+                  Sort, Connect document, Add job / import from URL,
+                  Suggest cover letter, Build CV, Import CV, Experience/
+                  Education/Certification/Custom section, ...), JobCard,
+                  MatchRatingBadge, LoadingBar, form fields, layout chrome
+                  (nav, footer, chat widget host)
   cvTemplates/    The CV rendering engine — renderCvPdf.js (generic,
                   config-driven PDF renderer) and templates.js (per-template
                   layout/palette/font data; adding a template needs no
@@ -148,15 +170,21 @@ supabase/
   functions/      Edge Functions — delete-account, notify-email-changed,
                   import-job-listing, import-cv, generate-cover-letter,
                   build-cv, gmail-oauth-callback, gmail-disconnect,
-                  scan-gmail-inbox
+                  scan-gmail-inbox, job-match-rating,
+                  recalculate-match-ratings
+  migrations/     Git-tracked schema changes (activity log + roles,
+                  admin activity-count RPC, job match rating). Secret
+                  values themselves are never committed — database
+                  triggers that need one read it from Supabase Vault,
+                  set live against the project instead.
   config.toml     Local Supabase CLI config
 docs/
   knowledge-base/ Standalone how-to documents (one per app function),
-                  written for embedding in a RAG vector store — not
+                  embedded into the support chatbot's vector store — not
                   imported or referenced by the app itself. Each document
-                  is self-contained (no cross-document links), since
-                  neither the RAG agent nor the end user browsing chat
-                  answers has access to the file tree.
+                  is self-contained (no cross-document links), since the
+                  chatbot has no access to the file tree, only its vector
+                  store.
 wrangler.jsonc    Cloudflare Workers-with-Assets deploy config — see
                   Deployment
 ```
@@ -180,7 +208,8 @@ Environment variables (see `.env.example`):
 | `VITE_GOOGLE_CLIENT_ID`    | Google OAuth 2.0 Client ID (Gmail inbox scanning) |
 
 The AI-backed Edge Functions (`import-job-listing`, `import-cv`,
-`generate-cover-letter`, `build-cv`, `scan-gmail-inbox`) need a
+`generate-cover-letter`, `build-cv`, `scan-gmail-inbox`,
+`job-match-rating`) need a
 `BEDROCK_API_KEY` (a long-term Amazon Bedrock API key) — this is a
 **Supabase Edge Function secret**, not a Vite/frontend env var, so it
 never goes in `.env`. Set it with `supabase secrets set
