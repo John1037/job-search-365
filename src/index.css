@@ -2611,6 +2611,34 @@ body {
   color: var(--text);
 }
 
+/* Full-sentence equivalent of .skill-picker-badge — a pill shape doesn't
+   work once the content wraps across lines, so this is a left-aligned
+   block row instead. */
+.bullet-picker-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.bullet-picker-option {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bullet-picker-option:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
 .cv-components-intro {
   margin-bottom: 24px;
 }

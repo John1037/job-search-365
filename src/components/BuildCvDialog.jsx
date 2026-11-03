@@ -118,6 +118,14 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
   const [newSkillText, setNewSkillText] = useState('');
   const [addingSkill, setAddingSkill] = useState(false);
 
+  // The full bullet library for whichever experience entries ended up in
+  // the build — like librarySkills, needed so the per-entry "Add bullet"
+  // picker can show what the AI selection left out. Fetched once per
+  // build (see handleBuild), not kept live in sync with cv, since the
+  // set of entries/ids only changes on a rebuild.
+  const [libraryExperienceBullets, setLibraryExperienceBullets] = useState([]);
+  const [openBulletPickerId, setOpenBulletPickerId] = useState(null);
+
   // Skills the job description names that aren't in the library yet — shown
   // as their own stage right after the first build, before review, so the
   // user can add any they genuinely have and get a build that reflects them,
@@ -152,6 +160,8 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
     setError(null);
     setSkillPickerOpen(false);
     setNewSkillText('');
+    setLibraryExperienceBullets([]);
+    setOpenBulletPickerId(null);
     setSuggestedNewSkills([]);
     setSelectedNewSkills(new Set());
     setFallbackWarnings([]);
@@ -220,6 +230,20 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
     setFallbackWarnings(
       Array.isArray(data.fallback_warnings) ? data.fallback_warnings : [],
     );
+
+    const experienceIds =
+      data.cv.sections.find((s) => s.type === 'experience')?.entries.map((e) => e.id) ?? [];
+    if (experienceIds.length > 0) {
+      const { data: bulletRows } = await supabase
+        .from('cv_experience_bullets')
+        .select('id, experience_id, bullet_text')
+        .in('experience_id', experienceIds)
+        .order('sort_order', { ascending: true });
+      setLibraryExperienceBullets(bulletRows ?? []);
+    } else {
+      setLibraryExperienceBullets([]);
+    }
+    setOpenBulletPickerId(null);
 
     const suggestions = Array.isArray(data.suggested_new_skills)
       ? data.suggested_new_skills
@@ -326,6 +350,35 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
 
   function removeSection(sectionIndex) {
     setCv((c) => ({ ...c, sections: c.sections.filter((_, i) => i !== sectionIndex) }));
+  }
+
+  // Adds a bullet to one experience entry's live build list — either an
+  // existing library bullet the AI selection left out (deduplicated, same
+  // as addSkillToBuild), or a blank row for a brand-new one-off bullet
+  // (text === '', so the dedup check is skipped — it's never a match).
+  function addBulletToEntry(sectionIndex, entryIndex, text) {
+    setCv((c) => {
+      const entry = c.sections[sectionIndex].entries[entryIndex];
+      if (
+        text &&
+        entry.bullets.some((b) => b.trim().toLowerCase() === text.trim().toLowerCase())
+      ) {
+        return c;
+      }
+      return {
+        ...c,
+        sections: c.sections.map((s, i) =>
+          i === sectionIndex
+            ? {
+                ...s,
+                entries: s.entries.map((e, j) =>
+                  j === entryIndex ? { ...e, bullets: [...e.bullets, text] } : e,
+                ),
+              }
+            : s,
+        ),
+      };
+    });
   }
 
   // Adds a skill (already-known text, from a library badge or a
@@ -855,31 +908,80 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
                 )}
 
                 {section.type === 'experience' &&
-                  section.entries.map((entry, eIndex) => (
-                    <div key={entry.id} className="cv-review-entry">
-                      <div className="cv-review-entry-header">
-                        <span className="item-name-primary">
-                          {entry.title} — {entry.employer}
-                        </span>
-                        <span className="item-meta">{entry.date_range}</span>
-                        <button
-                          type="button"
-                          className="button-outline item-delete"
-                          onClick={() => removeEntry(sIndex, eIndex)}
-                        >
-                          Remove
-                        </button>
+                  section.entries.map((entry, eIndex) => {
+                    const bulletPickerOpen = openBulletPickerId === entry.id;
+                    const selectedLower = new Set(
+                      entry.bullets.map((t) => t.trim().toLowerCase()),
+                    );
+                    const omittedBullets = libraryExperienceBullets.filter(
+                      (b) =>
+                        b.experience_id === entry.id &&
+                        !selectedLower.has(b.bullet_text.trim().toLowerCase()),
+                    );
+                    return (
+                      <div key={entry.id} className="cv-review-entry">
+                        <div className="cv-review-entry-header">
+                          <span className="item-name-primary">
+                            {entry.title} — {entry.employer}
+                          </span>
+                          <span className="item-meta">{entry.date_range}</span>
+                          <button
+                            type="button"
+                            className="button-outline item-delete"
+                            onClick={() => removeEntry(sIndex, eIndex)}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <BulletListEditor
+                          items={toEditableList(entry.bullets)}
+                          onChange={(items) =>
+                            updateEntry(sIndex, eIndex, { bullets: fromEditableList(items) })
+                          }
+                          addLabel={bulletPickerOpen ? 'Close' : 'Add bullet'}
+                          rows={3}
+                          onAddClick={() =>
+                            setOpenBulletPickerId((id) => (id === entry.id ? null : entry.id))
+                          }
+                        />
+                        {bulletPickerOpen && (
+                          <div className="skill-picker">
+                            {omittedBullets.length > 0 ? (
+                              <div className="bullet-picker-options">
+                                {omittedBullets.map((b) => (
+                                  <button
+                                    type="button"
+                                    key={b.id}
+                                    className="bullet-picker-option"
+                                    onClick={() => {
+                                      addBulletToEntry(sIndex, eIndex, b.bullet_text);
+                                      setOpenBulletPickerId(null);
+                                    }}
+                                  >
+                                    {b.bullet_text}
+                                  </button>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="field-hint">
+                                Every bullet for this role is already in this build.
+                              </p>
+                            )}
+                            <button
+                              type="button"
+                              className="button-outline"
+                              onClick={() => {
+                                addBulletToEntry(sIndex, eIndex, '');
+                                setOpenBulletPickerId(null);
+                              }}
+                            >
+                              Write a new bullet
+                            </button>
+                          </div>
+                        )}
                       </div>
-                      <BulletListEditor
-                        items={toEditableList(entry.bullets)}
-                        onChange={(items) =>
-                          updateEntry(sIndex, eIndex, { bullets: fromEditableList(items) })
-                        }
-                        addLabel="Add bullet"
-                        rows={3}
-                      />
-                    </div>
-                  ))}
+                    );
+                  })}
 
                 {section.type === 'earlier_experience' &&
                   section.entries.map((entry, eIndex) => (
