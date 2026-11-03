@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 
 // Shared by ExperienceDialog/EducationDialog (the library editors) and
 // BuildCvDialog's review stage — same add/remove/reorder UI everywhere,
@@ -24,7 +24,14 @@ function BulletListEditor({
   reorder = 'buttons',
   onAddClick,
 }) {
-  const dragIndexRef = useRef(null);
+  // Pointer Events (not HTML5 drag-and-drop, which has no touch support)
+  // so the same handle works with a mouse or a finger. dragIndex is the
+  // item being moved; overIndex is whichever row the pointer is currently
+  // over, used only for the drop-target highlight — the actual reorder
+  // happens once, on release, same as the old up/down buttons did.
+  const rowRefs = useRef([]);
+  const [dragIndex, setDragIndex] = useState(null);
+  const [overIndex, setOverIndex] = useState(null);
 
   function updateText(index, text) {
     onChange(items.map((item, i) => (i === index ? { ...item, text } : item)));
@@ -56,9 +63,34 @@ function BulletListEditor({
     onChange(next);
   }
 
-  function handleDrop(index) {
-    if (dragIndexRef.current !== null) moveItem(dragIndexRef.current, index);
-    dragIndexRef.current = null;
+  function handlePointerDown(e, index) {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragIndex(index);
+    setOverIndex(index);
+  }
+
+  // Pointer capture keeps these events targeted at the handle itself (so
+  // this handler keeps firing) regardless of what's physically under the
+  // finger/cursor — clientY still reflects the real position, which is
+  // compared against every row's own bounding box to find which one it's
+  // currently over.
+  function handlePointerMove(e) {
+    if (dragIndex === null) return;
+    const y = e.clientY;
+    for (let i = 0; i < rowRefs.current.length; i++) {
+      const rect = rowRefs.current[i]?.getBoundingClientRect();
+      if (rect && y >= rect.top && y <= rect.bottom) {
+        setOverIndex(i);
+        break;
+      }
+    }
+  }
+
+  function handlePointerUp() {
+    if (dragIndex !== null && overIndex !== null) moveItem(dragIndex, overIndex);
+    setDragIndex(null);
+    setOverIndex(null);
   }
 
   function add() {
@@ -86,13 +118,10 @@ function BulletListEditor({
             <button
               type="button"
               className="button-outline bullet-editor-handle"
-              draggable
-              onDragStart={() => {
-                dragIndexRef.current = index;
-              }}
-              onDragEnd={() => {
-                dragIndexRef.current = null;
-              }}
+              onPointerDown={(e) => handlePointerDown(e, index)}
+              onPointerMove={handlePointerMove}
+              onPointerUp={handlePointerUp}
+              onPointerCancel={handlePointerUp}
               aria-label="Drag to reorder"
               title="Drag to reorder"
             >
@@ -110,12 +139,21 @@ function BulletListEditor({
             </button>
           );
 
+          const rowClassName = [
+            'bullet-editor-row',
+            dragIndex === index && 'bullet-editor-row-dragging',
+            overIndex === index && dragIndex !== index && 'bullet-editor-row-drop-target',
+          ]
+            .filter(Boolean)
+            .join(' ');
+
           return (
             <div
-              className="bullet-editor-row"
+              className={rowClassName}
               key={item.id ?? `new-${index}`}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => handleDrop(index)}
+              ref={(el) => {
+                rowRefs.current[index] = el;
+              }}
             >
               {variant === 'compact' ? (
                 <>

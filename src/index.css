@@ -2507,10 +2507,26 @@ body {
   cursor: grab;
   font-size: 14px;
   line-height: 1;
+  /* Without this, a touch drag starts a page scroll instead of reaching
+     the pointermove handler — this is what makes the handle draggable
+     with a finger, not just a mouse. */
+  touch-action: none;
+  user-select: none;
 }
 
 .bullet-editor-handle:active {
   cursor: grabbing;
+}
+
+.bullet-editor-row-dragging {
+  opacity: 0.5;
+}
+
+.bullet-editor-row-drop-target {
+  background: var(--accent-bg);
+  border-radius: 6px;
+  margin: -4px;
+  padding: 4px;
 }
 
 .cv-skill-add-form {
