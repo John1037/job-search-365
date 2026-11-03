@@ -849,6 +849,7 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
                       }
                       addLabel={skillPickerOpen ? 'Close' : 'Add skill'}
                       variant="compact"
+                      reorder="handle"
                       rows={1}
                       onAddClick={() => setSkillPickerOpen((o) => !o)}
                     />
@@ -939,6 +940,7 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
                             updateEntry(sIndex, eIndex, { bullets: fromEditableList(items) })
                           }
                           addLabel={bulletPickerOpen ? 'Close' : 'Add bullet'}
+                          reorder="handle"
                           rows={3}
                           onAddClick={() =>
                             setOpenBulletPickerId((id) => (id === entry.id ? null : entry.id))
@@ -1038,6 +1040,7 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
                                   })
                                 }
                                 addLabel="Add detail"
+                                reorder="handle"
                               />
                             </div>
                           ))}
@@ -1068,6 +1071,7 @@ function BuildCvDialog({ open, onClose, jobId, cvWord, onSave }) {
                           updateEntry(sIndex, eIndex, { items: fromEditableList(items) })
                         }
                         addLabel="Add detail"
+                        reorder="handle"
                       />
                     </div>
                   ))}

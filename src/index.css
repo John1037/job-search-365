@@ -2492,6 +2492,27 @@ body {
   font-size: 12px;
 }
 
+/* reorder="handle" variants: the handle+delete pair aren't always wrapped
+   in .bullet-editor-row-actions (the compact/skills case keeps delete on
+   the right as a standalone sibling, not stacked with the handle), so
+   size them directly too rather than relying only on the wrapper rule
+   above. */
+.bullet-editor-row > .bullet-editor-handle,
+.bullet-editor-row > .item-delete {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.bullet-editor-handle {
+  cursor: grab;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.bullet-editor-handle:active {
+  cursor: grabbing;
+}
+
 .cv-skill-add-form {
   display: flex;
   gap: 8px;
