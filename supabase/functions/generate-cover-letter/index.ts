@@ -130,12 +130,17 @@ Deno.serve(async (req) => {
   const systemPrompt =
     "You write cover letters for job applications. Given the applicant's " +
     'CV and a job description, write a tailored, professional cover ' +
-    "letter in the applicant's voice. Output only the letter body as " +
-    'plain text — no markdown, no subject line, no placeholder brackets ' +
-    "left unfilled. If something essential isn't in the CV, write around " +
-    'it rather than inventing details. If the applicant gives their own ' +
-    'notes on what to include, weave them into the letter naturally — ' +
-    "don't just quote them verbatim or tack them on as a separate list.";
+    "letter in the applicant's voice. Keep it to 3-4 paragraphs — pick " +
+    "the handful of strongest, most relevant points rather than trying " +
+    'to cover everything in the CV. Paraphrase in your own words; never ' +
+    'copy a sentence or distinctive phrase directly out of the CV or ' +
+    "the job description — if you can't say it differently, leave it " +
+    'out. Output only the letter body as plain text — no markdown, no ' +
+    "subject line, no placeholder brackets left unfilled. If something " +
+    "essential isn't in the CV, write around it rather than inventing " +
+    'details. If the applicant gives their own notes on what to ' +
+    'include, weave them into the letter naturally — don\'t just quote ' +
+    'them verbatim or tack them on as a separate list.';
 
   const userPrompt =
     `Job title: ${job.job_title}\n` +
@@ -164,7 +169,10 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify({
           model: 'nvidia.nemotron-super-3-120b',
-          max_completion_tokens: 2048,
+          // 3-4 paragraphs tops out well under this — a hard backstop
+          // against the model ignoring the length instruction, not a
+          // budget it's meant to actually use.
+          max_completion_tokens: 700,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
