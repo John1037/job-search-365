@@ -36,49 +36,52 @@ async function buildCoverLetterPdfBlob(text) {
 }
 
 function GenerateCoverLetterDialog({ open, onClose, jobId, employer, onSave }) {
+  const [extraDetails, setExtraDetails] = useState('');
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  // Generation no longer fires the moment the dialog opens — it waits for
+  // "Generate" below, so there's a chance to add anything specific first
+  // instead of only being able to edit the draft after the fact.
   useEffect(() => {
     if (!open) return;
-
+    setExtraDetails('');
     setDraft('');
     setError(null);
+  }, [open]);
 
-    async function generate() {
-      setLoading(true);
+  async function handleGenerate() {
+    setLoading(true);
+    setError(null);
 
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-      if (!session) {
-        setError('Not signed in.');
-        setLoading(false);
-        return;
-      }
-
-      const { data, error: fnError } = await supabase.functions.invoke(
-        'generate-cover-letter',
-        {
-          body: { job_id: jobId },
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        },
-      );
-
-      if (fnError) {
-        setError(await getFunctionErrorMessage(fnError));
-      } else {
-        setDraft(data.draft);
-      }
-
+    if (!session) {
+      setError('Not signed in.');
       setLoading(false);
+      return;
     }
 
-    generate();
-  }, [open, jobId]);
+    const { data, error: fnError } = await supabase.functions.invoke(
+      'generate-cover-letter',
+      {
+        body: { job_id: jobId, extra_details: extraDetails.trim() },
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      },
+    );
+
+    if (fnError) {
+      setError(await getFunctionErrorMessage(fnError));
+    } else {
+      setDraft(data.draft);
+    }
+
+    setLoading(false);
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -170,6 +173,21 @@ function GenerateCoverLetterDialog({ open, onClose, jobId, employer, onSave }) {
       >
         <h2>Suggest cover letter</h2>
 
+        {!loading && !draft && (
+          <>
+            <label htmlFor="cover-letter-extra-details">
+              Anything specific you want included? (optional)
+            </label>
+            <textarea
+              id="cover-letter-extra-details"
+              rows={4}
+              placeholder="e.g. mention my notice period, or that I'm relocating to the area"
+              value={extraDetails}
+              onChange={(e) => setExtraDetails(e.target.value)}
+            />
+          </>
+        )}
+
         {loading && (
           <>
             <p>Drafting your cover letter…</p>
@@ -191,14 +209,25 @@ function GenerateCoverLetterDialog({ open, onClose, jobId, employer, onSave }) {
           <button type="button" className="button-outline" onClick={onClose}>
             Cancel
           </button>
-          <button
-            type="button"
-            className="button-positive"
-            disabled={loading || saving || !draft}
-            onClick={handleSave}
-          >
-            {saving ? 'Saving…' : 'Save as cover letter'}
-          </button>
+          {!draft ? (
+            <button
+              type="button"
+              className="button-positive"
+              disabled={loading}
+              onClick={handleGenerate}
+            >
+              {loading ? 'Drafting…' : 'Generate'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="button-positive"
+              disabled={saving}
+              onClick={handleSave}
+            >
+              {saving ? 'Saving…' : 'Save as cover letter'}
+            </button>
+          )}
         </div>
       </div>
     </Modal>

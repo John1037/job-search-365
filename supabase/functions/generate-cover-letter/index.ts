@@ -48,10 +48,13 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
-  const { job_id } = await req.json();
+  const { job_id, extra_details } = await req.json();
   if (!job_id) {
     return jsonResponse({ error: 'Missing job_id' }, 400);
   }
+
+  const trimmedExtraDetails =
+    typeof extra_details === 'string' ? extra_details.trim() : '';
 
   const { data: job, error: jobError } = await supabaseUser
     .from('jobs')
@@ -130,13 +133,18 @@ Deno.serve(async (req) => {
     "letter in the applicant's voice. Output only the letter body as " +
     'plain text — no markdown, no subject line, no placeholder brackets ' +
     "left unfilled. If something essential isn't in the CV, write around " +
-    "it rather than inventing details.";
+    'it rather than inventing details. If the applicant gives their own ' +
+    'notes on what to include, weave them into the letter naturally — ' +
+    "don't just quote them verbatim or tack them on as a separate list.";
 
   const userPrompt =
     `Job title: ${job.job_title}\n` +
     `Employer: ${job.employer}\n\n` +
     `Job description:\n${job.description}\n\n` +
-    `Applicant's CV:\n${cvText}`;
+    `Applicant's CV:\n${cvText}` +
+    (trimmedExtraDetails
+      ? `\n\nThe applicant specifically asked for this letter to include:\n${trimmedExtraDetails}`
+      : '');
 
   try {
     // Nemotron (NVIDIA) on AWS Bedrock, eu-west-2 (London), via Bedrock's
