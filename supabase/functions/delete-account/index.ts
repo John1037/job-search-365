@@ -53,6 +53,22 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
+  // Revoke any Gmail grant at Google first. The cascade below would delete
+  // our email_connections row, but not the grant itself, which would
+  // otherwise stay active in the user's Google Account after their account
+  // here is gone. Delegated to gmail-disconnect (called as the user, with
+  // their own token) so the revoke logic lives in one place. It's a no-op
+  // with no connection. Best-effort: a failure here is logged but must never
+  // block the deletion the user asked for.
+  try {
+    const { error: gmailError } = await supabaseUser.functions.invoke('gmail-disconnect');
+    if (gmailError) {
+      console.log('[delete-account] gmail-disconnect failed (non-fatal):', gmailError.message);
+    }
+  } catch (err) {
+    console.log('[delete-account] gmail-disconnect failed (non-fatal):', err);
+  }
+
   // Storage objects aren't covered by the database's foreign-key cascades,
   // so remove each bucket's files for this user explicitly.
   //
