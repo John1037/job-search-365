@@ -55,23 +55,50 @@ Deno.serve(async (req) => {
 
   // Storage objects aren't covered by the database's foreign-key cascades,
   // so remove each bucket's files for this user explicitly.
+  //
+  // list() returns at most `limit` entries per call (default 100), so a
+  // single call silently missed everything past the first page for a user
+  // with many documents. Each batch is removed before the next list, so
+  // every call re-reads from the start: loop until the folder lists empty.
+  // Stop early if a remove fails or removes nothing, so a stuck object
+  // can't spin this forever. All uploads are flat `${user.id}/<file>` paths
+  // (see Documents.jsx / EditProfile.jsx), so there are no subfolders to
+  // recurse into.
+  const STORAGE_LIST_BATCH = 1000;
+  const MAX_STORAGE_BATCHES = 50;
+
   for (const bucket of ['avatars', 'documents']) {
-    const { data: files, error: listError } = await supabaseAdmin.storage
-      .from(bucket)
-      .list(user.id);
+    let removedTotal = 0;
 
-    console.log(`[delete-account] ${bucket} list:`, {
-      count: files?.length ?? 0,
-      listError: listError?.message,
-    });
+    for (let batch = 0; batch < MAX_STORAGE_BATCHES; batch++) {
+      const { data: files, error: listError } = await supabaseAdmin.storage
+        .from(bucket)
+        .list(user.id, { limit: STORAGE_LIST_BATCH });
 
-    if (files && files.length > 0) {
+      if (listError) {
+        console.log(`[delete-account] ${bucket} list failed:`, listError.message);
+        break;
+      }
+
+      if (!files || files.length === 0) break;
+
       const paths = files.map((file) => `${user.id}/${file.name}`);
-      const { error: removeError } = await supabaseAdmin.storage
+      const { data: removed, error: removeError } = await supabaseAdmin.storage
         .from(bucket)
         .remove(paths);
-      console.log(`[delete-account] ${bucket} remove error:`, removeError?.message);
+
+      if (removeError || !removed || removed.length === 0) {
+        console.log(
+          `[delete-account] ${bucket} remove stopped:`,
+          removeError?.message ?? 'nothing removed',
+        );
+        break;
+      }
+
+      removedTotal += removed.length;
     }
+
+    console.log(`[delete-account] ${bucket} files removed:`, removedTotal);
   }
 
   console.log('[delete-account] deleting auth user:', user.id);

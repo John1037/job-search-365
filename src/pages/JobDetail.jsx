@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import AddEventDialog from '../components/AddEventDialog';
 import ConnectDocumentDialog from '../components/ConnectDocumentDialog';
@@ -17,6 +17,11 @@ import {
 } from '../jobFormat';
 import { addJobEvent } from '../jobEvents';
 import { sortedCurrencies } from '../data/currencies';
+
+// job-match-rating's own Bedrock call times out at 60s, so a score that
+// hasn't arrived within ~75s isn't coming from this save.
+const MATCH_SCORE_POLL_INTERVAL_MS = 3000;
+const MATCH_SCORE_POLL_TIMEOUT_MS = 75000;
 
 function JobDetail() {
   const { id } = useParams();
@@ -68,6 +73,59 @@ function JobDetail() {
     { key: 'other_document_2_id', category: 'other', label: 'Other document 2' },
     { key: 'other_document_3_id', category: 'other', label: 'Other document 3' },
   ];
+
+  // match_score isn't written by the save itself. A DB trigger hands the
+  // new description to the job-match-rating edge function, which writes
+  // the score some seconds later, after the save has already returned. So
+  // after a description change (or arriving from a URL import, which
+  // inserts with a description), poll the score briefly until it changes,
+  // instead of showing the stale/missing score until the next page load.
+  // `baseline` is the score shown at the time of the change. A re-score
+  // that lands on exactly the same number is indistinguishable from "not
+  // done yet", so that case just stops quietly at the timeout.
+  const routeLocation = useLocation();
+  const [matchScoreWatch, setMatchScoreWatch] = useState(
+    routeLocation.state?.awaitingMatchScore ? { baseline: null } : null,
+  );
+
+  useEffect(() => {
+    if (!matchScoreWatch) return;
+
+    let cancelled = false;
+    let timer;
+    const startedAt = Date.now();
+
+    async function poll() {
+      const { data } = await supabase
+        .from('jobs')
+        .select('match_score')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      const score = data?.match_score ?? null;
+      if (score != null && score !== matchScoreWatch.baseline) {
+        setJob((j) => (j ? { ...j, match_score: score } : j));
+        setMatchScoreWatch(null);
+        return;
+      }
+
+      if (Date.now() - startedAt >= MATCH_SCORE_POLL_TIMEOUT_MS) {
+        setMatchScoreWatch(null);
+        return;
+      }
+
+      timer = setTimeout(poll, MATCH_SCORE_POLL_INTERVAL_MS);
+    }
+
+    timer = setTimeout(poll, MATCH_SCORE_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [matchScoreWatch, id]);
 
   useEffect(() => {
     async function load() {
@@ -216,6 +274,16 @@ function JobDetail() {
     if (updateError) {
       setError(updateError.message);
       return false;
+    }
+
+    // Mirrors trg_job_description_changed: clearing the description clears
+    // the score straight away; any other change re-scores in the background.
+    const descriptionChanged = updates.description !== (job.description ?? null);
+    if (descriptionChanged && updates.description === null) {
+      updates.match_score = null;
+      setMatchScoreWatch(null);
+    } else if (descriptionChanged) {
+      setMatchScoreWatch({ baseline: job.match_score ?? null });
     }
 
     setJob((j) => ({ ...j, ...updates }));
@@ -538,6 +606,11 @@ function JobDetail() {
             >
               {'★'.repeat(job.favorite_level ?? 0)}
             </span>
+            {matchScoreWatch && (
+              <span className="match-score-pending" role="status">
+                Updating match score…
+              </span>
+            )}
             <MatchRatingBadge score={job.match_score} size="detail" />
           </div>
         </div>

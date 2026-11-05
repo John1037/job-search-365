@@ -34,7 +34,16 @@ const INTERVIEW_EVENT_NAMES = ['Interview scheduled', 'Interview completed'];
 const SEARCH_KEYWORDS =
   '(interview OR application OR applying OR position OR offer OR candidacy OR recruiting OR regret OR "not moving forward" OR "thank you for applying")';
 const DEFAULT_LOOKBACK_DAYS = 90;
-const MAX_RESULTS = 50;
+// How many emails one scan fetches in full and sends to the classifier in
+// its single Bedrock call. Anything beyond this is left for the next scan
+// (see the sync cursor below) rather than dropped.
+const MAX_EMAILS_PER_SCAN = 50;
+// Listing ids is cheap (no bodies), so the whole matching set is listed
+// up front. That's the only way to know which messages are the OLDEST,
+// since Gmail lists newest-first. The cap is a runaway backstop: hitting it
+// would take thousands of keyword-matching emails in the lookback window.
+const LIST_PAGE_SIZE = 500;
+const MAX_LISTED_MESSAGES = 5000;
 const MAX_BODY_CHARS = 1500;
 
 function isValidDate(value: unknown): value is string {
@@ -227,34 +236,84 @@ Deno.serve(async (req) => {
 
   const searchQuery = `${SEARCH_KEYWORDS} -category:promotions -category:social after:${afterEpochSeconds}`;
 
-  const listUrl = new URL(
-    'https://gmail.googleapis.com/gmail/v1/users/me/messages',
-  );
-  listUrl.searchParams.set('q', searchQuery);
-  listUrl.searchParams.set('maxResults', String(MAX_RESULTS));
+  // Captured before listing, so mail that arrives while this scan runs is
+  // still newer than the cursor and gets picked up next time.
+  const scanStartedAt = new Date();
 
-  const listResponse = await fetch(listUrl, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const messageRefs: { id: string }[] = [];
+  let pageToken: string | undefined;
+  do {
+    const listUrl = new URL(
+      'https://gmail.googleapis.com/gmail/v1/users/me/messages',
+    );
+    listUrl.searchParams.set('q', searchQuery);
+    listUrl.searchParams.set('maxResults', String(LIST_PAGE_SIZE));
+    if (pageToken) listUrl.searchParams.set('pageToken', pageToken);
 
-  if (!listResponse.ok) {
-    const detail = await listResponse.text();
-    console.log('[scan-gmail-inbox] message list failed:', detail);
-    return jsonResponse({ error: 'Failed to search Gmail' }, 502);
+    const listResponse = await fetch(listUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!listResponse.ok) {
+      const detail = await listResponse.text();
+      console.log('[scan-gmail-inbox] message list failed:', detail);
+      return jsonResponse({ error: 'Failed to search Gmail' }, 502);
+    }
+
+    const listResult = await listResponse.json();
+    messageRefs.push(...(listResult.messages ?? []));
+    pageToken = listResult.nextPageToken;
+  } while (pageToken && messageRefs.length < MAX_LISTED_MESSAGES);
+
+  if (pageToken) {
+    console.log(
+      '[scan-gmail-inbox] listing hit MAX_LISTED_MESSAGES; mail older than the listed set may be skipped:',
+      messageRefs.length,
+    );
   }
 
-  const listResult = await listResponse.json();
-  const messageRefs: { id: string }[] = listResult.messages ?? [];
+  // Oldest first, and only one batch per scan. The sync cursor then moves
+  // forward only as far as the newest email this scan actually handled, so
+  // a backlog bigger than one batch is worked through over successive
+  // scans instead of everything past the first batch being skipped.
+  const batch = [...messageRefs].reverse().slice(0, MAX_EMAILS_PER_SCAN);
+  const moreRemaining = messageRefs.length > batch.length;
+
+  let syncCursor = scanStartedAt;
+  if (moreRemaining) {
+    const lastRef = batch[batch.length - 1];
+    const minimalUrl = new URL(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${lastRef.id}`,
+    );
+    minimalUrl.searchParams.set('format', 'minimal');
+    const minimalResponse = await fetch(minimalUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const internalDateMs = minimalResponse.ok
+      ? Number((await minimalResponse.json()).internalDate)
+      : NaN;
+    if (!Number.isFinite(internalDateMs)) {
+      // Without the batch's newest timestamp there's no safe place to move
+      // the cursor to. Fail without advancing it, so nothing gets skipped.
+      console.log('[scan-gmail-inbox] could not read batch boundary date:', lastRef.id);
+      return jsonResponse({ error: 'Failed to search Gmail' }, 502);
+    }
+    // Gmail's after: is only second-granular, so step back one second to
+    // avoid skipping another message from the boundary second. A boundary
+    // message already matched is deduped below; an unmatched one is just
+    // re-checked once.
+    syncCursor = new Date(internalDateMs - 1000);
+  }
 
   const markSynced = () =>
     supabaseUser
       .from('email_connections')
-      .update({ last_synced_at: new Date().toISOString() })
+      .update({ last_synced_at: syncCursor.toISOString() })
       .eq('id', connection.id);
 
-  if (messageRefs.length === 0) {
+  if (batch.length === 0) {
     await markSynced();
-    return jsonResponse({ matches_found: 0 }, 200);
+    return jsonResponse({ matches_found: 0, more_remaining: false }, 200);
   }
 
   const { data: alreadySeen } = await supabaseUser
@@ -263,13 +322,13 @@ Deno.serve(async (req) => {
     .eq('provider', 'gmail')
     .in(
       'provider_message_id',
-      messageRefs.map((m) => m.id),
+      batch.map((m) => m.id),
     );
 
   const seenIds = new Set(
     (alreadySeen ?? []).map((row) => row.provider_message_id),
   );
-  const newRefs = messageRefs.filter((m) => !seenIds.has(m.id));
+  const newRefs = batch.filter((m) => !seenIds.has(m.id));
 
   const candidateEmails: {
     message_id: string;
@@ -312,7 +371,7 @@ Deno.serve(async (req) => {
 
   if (candidateEmails.length === 0) {
     await markSynced();
-    return jsonResponse({ matches_found: 0 }, 200);
+    return jsonResponse({ matches_found: 0, more_remaining: moreRemaining }, 200);
   }
 
   const jobsForPrompt = openJobs.map((j) => ({
@@ -493,5 +552,8 @@ Deno.serve(async (req) => {
 
   await markSynced();
 
-  return jsonResponse({ matches_found: rowsToInsert.length }, 200);
+  return jsonResponse(
+    { matches_found: rowsToInsert.length, more_remaining: moreRemaining },
+    200,
+  );
 });

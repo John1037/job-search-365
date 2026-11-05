@@ -29,6 +29,9 @@ function Inbox() {
   // persisted/restored, so navigating away and back always starts at null,
   // regardless of how many matches currently exist.
   const [lastScanCount, setLastScanCount] = useState(null);
+  // scan-gmail-inbox handles a bounded batch per run, oldest first. This is
+  // true when the last scan left older mail for the next run.
+  const [lastScanMoreRemaining, setLastScanMoreRemaining] = useState(false);
   const [error, setError] = useState(null);
   const [disconnectPending, setDisconnectPending] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
@@ -141,6 +144,7 @@ function Inbox() {
     // Clear any message left over from a previous scan right away, rather
     // than letting stale text sit there while this scan runs.
     setLastScanCount(null);
+    setLastScanMoreRemaining(false);
 
     const {
       data: { session },
@@ -152,7 +156,7 @@ function Inbox() {
       return;
     }
 
-    const { error: fnError } = await supabase.functions.invoke(
+    const { data: scanResult, error: fnError } = await supabase.functions.invoke(
       'scan-gmail-inbox',
       { headers: { Authorization: `Bearer ${session.access_token}` } },
     );
@@ -166,6 +170,7 @@ function Inbox() {
 
     const loadedMatches = await loadAll();
     setLastScanCount(loadedMatches.length);
+    setLastScanMoreRemaining(!!scanResult?.more_remaining);
   }
 
   async function handleDismiss(match) {
@@ -282,6 +287,8 @@ function Inbox() {
                 {lastScanCount === 0
                   ? 'No pending matches.'
                   : `Found ${lastScanCount} possible update${lastScanCount === 1 ? '' : 's'}.`}
+                {lastScanMoreRemaining &&
+                  ' There’s more mail to check — click "Scan now" again.'}
               </p>
             )}
           </div>

@@ -103,7 +103,12 @@ function AddJobDialog({ open, onClose }) {
     }
 
     handleClose();
-    navigate(`/jobs/${inserted.id}`);
+    // An imported description kicks off background match scoring right
+    // away (see JobDetail's matchScoreWatch), so the job page should wait
+    // for that first score rather than show none until a reload.
+    navigate(`/jobs/${inserted.id}`, {
+      state: { awaitingMatchScore: !!extracted.description },
+    });
   }
 
   return (
