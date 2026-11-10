@@ -177,8 +177,9 @@ function Inbox() {
     setError(null);
     // Deleted outright rather than marked dismissed — no reason to keep
     // holding the email content once it's been reviewed. A future scan
-    // won't re-surface it: the sync cursor only looks at mail newer than
-    // the last scan, so an already-seen message won't be re-fetched.
+    // shouldn't re-surface it: the sync cursor only looks at mail newer than
+    // the last scan, and never more than 30 days back (scan-gmail-inbox's
+    // MAX_LOOKBACK_DAYS), so an already-seen message isn't re-fetched.
     const { error: deleteError } = await supabase
       .from('email_matches')
       .delete()

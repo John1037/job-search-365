@@ -6,6 +6,10 @@ Once a Gmail account is connected via the Inbox page, it can be scanned for appl
 
 Scanning is manual — there's no automatic/scheduled scanning. Click **Scan now** on the Inbox page (it becomes "Scanning…" while it runs) whenever you want to check for new updates.
 
+A scan only looks at emails from the **last 30 days**. Older emails are never scanned, even on your first scan after connecting Gmail. Each scan picks up from where the last one finished, so emails already checked aren't checked again.
+
+One scan checks up to 50 emails, oldest first. If more are waiting, the message after the scan says "There's more mail to check — click "Scan now" again." Keep clicking **Scan now** until that message no longer appears.
+
 After a scan, a hint shows how many possible updates were found: "Found {N} possible update(s)." If there's nothing pending: "No pending matches. Click 'Scan now' to check for updates."
 
 ## Reviewing a match

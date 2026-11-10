@@ -33,7 +33,11 @@ const INTERVIEW_EVENT_NAMES = ['Interview scheduled', 'Interview completed'];
 
 const SEARCH_KEYWORDS =
   '(interview OR application OR applying OR position OR offer OR candidacy OR recruiting OR regret OR "not moving forward" OR "thank you for applying")';
-const DEFAULT_LOOKBACK_DAYS = 90;
+// Hard limit on how old a scanned email can be, applied on every scan, not
+// just the first. Older application mail is almost always already dealt
+// with, and re-reading it re-suggested matches the user had dismissed
+// (dismissing deletes the row, so there's nothing left to dedupe against).
+const MAX_LOOKBACK_DAYS = 30;
 // How many emails one scan fetches in full and sends to the classifier in
 // its single Bedrock call. Anything beyond this is left for the next scan
 // (see the sync cursor below) rather than dropped.
@@ -229,9 +233,17 @@ Deno.serve(async (req) => {
     (interviewEvents ?? []).map((e) => e.job_id),
   );
 
-  const lookbackDate = connection.last_synced_at
-    ? new Date(connection.last_synced_at)
-    : new Date(Date.now() - DEFAULT_LOOKBACK_DAYS * 24 * 60 * 60 * 1000);
+  // Start from the sync cursor, but never further back than
+  // MAX_LOOKBACK_DAYS: a missing cursor (first scan, or Gmail reconnected)
+  // or a stale one (a backlog still being worked through) is clamped to the
+  // window, so nothing older is ever listed.
+  const oldestAllowedMs = Date.now() - MAX_LOOKBACK_DAYS * 24 * 60 * 60 * 1000;
+  const cursorMs = connection.last_synced_at
+    ? new Date(connection.last_synced_at).getTime()
+    : NaN;
+  const lookbackDate = new Date(
+    Number.isFinite(cursorMs) ? Math.max(cursorMs, oldestAllowedMs) : oldestAllowedMs,
+  );
   const afterEpochSeconds = Math.floor(lookbackDate.getTime() / 1000);
 
   const searchQuery = `${SEARCH_KEYWORDS} -category:promotions -category:social after:${afterEpochSeconds}`;
