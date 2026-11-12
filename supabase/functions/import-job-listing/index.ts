@@ -61,6 +61,33 @@ async function fetchListingTextWithRetry(url: string): Promise<string> {
   return await fetchListingText(url, 20);
 }
 
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&');
+}
+
+// HTML job-description markup to plain text, keeping paragraph and list
+// breaks so the model sees the description's real structure.
+function htmlToText(html: string): string {
+  return decodeEntities(
+    decodeEntities(html)
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '• ')
+      .replace(/<[^>]+>/g, ' '),
+  )
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n\s*(\n\s*)+/g, '\n\n')
+    .trim();
+}
+
+const MAX_JSON_LD_DESCRIPTION_CHARS = 8000;
+
 // Many ATS platforms (Ashby, Greenhouse, Lever, Workday, ...) embed a
 // schema.org JobPosting block in the raw page HTML for SEO — server-rendered,
 // no JS needed to see it. It carries exact, unambiguous fields (workplace/
@@ -71,7 +98,15 @@ async function fetchListingTextWithRetry(url: string): Promise<string> {
 // a best-effort supplement to the scraped text, never a replacement: returns
 // null on any failure (blocked fetch, no such tag, unparseable JSON, no
 // JobPosting entry) rather than blocking the import.
-async function fetchJobPostingJsonLd(url: string): Promise<string | null> {
+//
+// Its `description` is returned separately, as plain text. It was once
+// dropped as a duplicate of the scraped text, but the reader proxy can pick
+// the wrong "main content": on Teamtailor career sites it returns the
+// privacy-policy modal and none of the job ad, so this is sometimes the
+// only copy of the real description the model gets.
+async function fetchJobPostingJsonLd(
+  url: string,
+): Promise<{ metadata: string; description: string | null } | null> {
   try {
     const response = await fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; JobSearch365/1.0)' },
@@ -95,11 +130,15 @@ async function fetchJobPostingJsonLd(url: string): Promise<string | null> {
       const candidates = Array.isArray(parsed) ? parsed : [parsed];
       for (const candidate of candidates) {
         if (candidate && typeof candidate === 'object' && candidate['@type'] === 'JobPosting') {
-          // Drop `description` — it's a large HTML-formatted duplicate of
-          // what the scraped page text already provides; keeping only the
-          // structured metadata fields keeps this compact and non-redundant.
-          const { description: _description, ...metadata } = candidate as Record<string, unknown>;
-          return JSON.stringify(metadata).slice(0, 4000);
+          const { description: rawDescription, ...metadata } = candidate as Record<string, unknown>;
+          const description =
+            typeof rawDescription === 'string'
+              ? htmlToText(rawDescription).slice(0, MAX_JSON_LD_DESCRIPTION_CHARS)
+              : '';
+          return {
+            metadata: JSON.stringify(metadata).slice(0, 4000),
+            description: description || null,
+          };
         }
       }
     }
@@ -155,13 +194,6 @@ async function fetchGreenhouseEmbedJob(url: string): Promise<string | null> {
     // back entity-encoded on top of that (e.g. "&lt;div&gt;" rather than
     // "<div>") — decode once to get real HTML, strip tags, then decode
     // again for entities that were part of the actual text (e.g. "&amp;").
-    const decodeEntities = (s: string) =>
-      s
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&amp;/g, '&');
     let description = decodeEntities(String(job.content ?? ''));
     description = description.replace(/<[^>]+>/g, ' ');
     description = decodeEntities(description).replace(/\s+/g, ' ').trim();
@@ -233,7 +265,7 @@ Deno.serve(async (req) => {
   }
 
   let pageText: string;
-  let jobPostingJsonLd: string | null;
+  let jobPostingJsonLd: Awaited<ReturnType<typeof fetchJobPostingJsonLd>>;
   let greenhouseEmbedJob: string | null;
   try {
     console.log('[import-job-listing] fetching listing:', url);
@@ -243,7 +275,12 @@ Deno.serve(async (req) => {
       fetchGreenhouseEmbedJob(url),
     ]);
     console.log('[import-job-listing] extracted page text length:', pageText.length);
-    console.log('[import-job-listing] JobPosting JSON-LD found:', !!jobPostingJsonLd);
+    console.log(
+      '[import-job-listing] JobPosting JSON-LD found:',
+      !!jobPostingJsonLd,
+      'description length:',
+      jobPostingJsonLd?.description?.length ?? 0,
+    );
     console.log('[import-job-listing] Greenhouse embed job found:', !!greenhouseEmbedJob);
   } catch (err) {
     console.log('[import-job-listing] listing fetch failed:', err);
@@ -253,7 +290,12 @@ Deno.serve(async (req) => {
   // A Greenhouse embed hit is the real job content straight from the
   // source, even when the page itself rendered as near-empty chrome — only
   // bail out for unreadable pages when neither source came through.
-  if (pageText.length < MIN_USABLE_PAGE_TEXT_LENGTH && !greenhouseEmbedJob) {
+  const jsonLdDescription = jobPostingJsonLd?.description ?? null;
+  if (
+    pageText.length < MIN_USABLE_PAGE_TEXT_LENGTH &&
+    !greenhouseEmbedJob &&
+    (jsonLdDescription?.length ?? 0) < MIN_USABLE_PAGE_TEXT_LENGTH
+  ) {
     console.log('[import-job-listing] page text too short, likely unreadable:', pageText);
     return jsonResponse(
       { error: "Couldn't read enough from that listing to extract details." },
@@ -285,20 +327,31 @@ Deno.serve(async (req) => {
     'included, it is the authoritative source for this listing (the page ' +
     "itself is a client-side embed with no visible job content) — use its " +
     'job_title, employer, and location fields directly, and extract ' +
-    'salary/employment_type/location_type from its description text. ' +
+    'salary/employment_type/location_type from its description text. If a ' +
+    "block headed \"Job description (from the page's JobPosting data)\" is " +
+    "included, it is the employer's own text for this job: base the " +
+    'description on it. The webpage text can contain unrelated site content ' +
+    '(privacy policies, cookie notices, navigation, other vacancies) and ' +
+    'sometimes none of the job ad at all. Never use that unrelated content ' +
+    'as the description; the description must describe this job only. ' +
     'Example json shape: {"job_title": "Software Engineer", "employer": ' +
     '"Acme Ltd", "salary_min": 45000, "salary_max": 55000, ' +
     '"salary_currency": "GBP", "salary_type": "annual", "employment_type": ' +
     '"full_time", "location_type": "hybrid", "location": "London", ' +
     '"description": "..."}';
 
+  const jsonLdBlocks = jobPostingJsonLd
+    ? `Structured JobPosting data (from the page's own SEO metadata):\n${jobPostingJsonLd.metadata}` +
+      (jsonLdDescription
+        ? `\n\nJob description (from the page's JobPosting data):\n${jsonLdDescription}`
+        : '')
+    : '';
+
   const userContent = greenhouseEmbedJob
     ? `Structured job data (from Greenhouse's job board API, authoritative):\n${greenhouseEmbedJob}` +
-      (jobPostingJsonLd
-        ? `\n\nStructured JobPosting data (from the page's own SEO metadata):\n${jobPostingJsonLd}`
-        : '')
-    : jobPostingJsonLd
-      ? `Structured JobPosting data (from the page's own SEO metadata):\n${jobPostingJsonLd}\n\nWebpage text:\n${pageText}`
+      (jsonLdBlocks ? `\n\n${jsonLdBlocks}` : '')
+    : jsonLdBlocks
+      ? `${jsonLdBlocks}\n\nWebpage text:\n${pageText}`
       : `Webpage text:\n${pageText}`;
 
   try {
@@ -327,7 +380,10 @@ Deno.serve(async (req) => {
           // judgment call below) for materially lower latency — worth
           // keeping an eye on actual extraction quality, not just speed.
           model: 'nvidia.nemotron-nano-3-30b',
-          max_completion_tokens: 4096,
+          // The description is copied out in full, so a long listing needs
+          // room: at 4096 a long description was cut off mid-string,
+          // leaving JSON that couldn't be parsed.
+          max_completion_tokens: 8192,
           // Keep extraction consistent run-to-run rather than creative.
           temperature: 0,
           messages: [
@@ -357,11 +413,20 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: 'Failed to read that job listing' }, 502);
     }
 
+    // The prompt asks for bare JSON, but tolerate ```json fences or a
+    // stray sentence around it: parse from the first "{" to the last "}".
+    const start = content.indexOf('{');
+    const end = content.lastIndexOf('}');
     let extracted: Record<string, unknown>;
     try {
-      extracted = JSON.parse(content);
-    } catch (err) {
-      console.log('[import-job-listing] failed to parse Bedrock JSON:', content);
+      extracted = JSON.parse(start >= 0 && end > start ? content.slice(start, end + 1) : content);
+    } catch {
+      console.log(
+        '[import-job-listing] failed to parse Bedrock JSON (finish_reason:',
+        result.choices?.[0]?.finish_reason,
+        '):',
+        content,
+      );
       return jsonResponse({ error: 'Failed to read that job listing' }, 502);
     }
 
