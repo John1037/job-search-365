@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { supabase } from './supabaseClient';
 import { resetOnboardingCheck } from './onboarding';
 import Layout from './components/Layout';
@@ -20,6 +20,17 @@ import InboxCallback from './pages/InboxCallback';
 import AdminActivity from './pages/AdminActivity';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import TermsOfService from './pages/TermsOfService';
+
+// Keyed on the job id so moving from one job's page straight to another
+// (e.g. adding a job from the control bar while viewing a job) remounts
+// JobDetail with fresh state. Without the key, React reused the instance
+// and per-job state the load effect only overwrites conditionally, such as
+// the connected documents (left alone when the new job has none), carried
+// over: a new job showed the previous job's cover letter.
+function KeyedJobDetail() {
+  const { id } = useParams();
+  return <JobDetail key={id} />;
+}
 
 function App() {
   const [session, setSession] = useState(undefined);
@@ -112,7 +123,7 @@ function App() {
           <Route path="/jobs" element={<ManageJobs />} />
           <Route path="/jobs/closed" element={<ManageJobs closed />} />
           <Route path="/jobs/new" element={<AddJob />} />
-          <Route path="/jobs/:id" element={<JobDetail />} />
+          <Route path="/jobs/:id" element={<KeyedJobDetail />} />
           <Route path="/inbox" element={<Inbox />} />
           <Route path="/inbox/callback" element={<InboxCallback />} />
           <Route path="/admin/activity" element={<AdminActivity />} />

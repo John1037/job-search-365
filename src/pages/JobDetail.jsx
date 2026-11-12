@@ -203,6 +203,8 @@ function JobDetail() {
           }
         }
         setConnectedDocs(nextConnectedDocs);
+      } else {
+        setConnectedDocs({});
       }
 
       const { data: eventsData, error: eventsError } = await supabase
