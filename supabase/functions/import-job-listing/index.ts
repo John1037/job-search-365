@@ -45,7 +45,24 @@ async function fetchListingText(url: string, waitSeconds: number): Promise<strin
     text = raw;
   }
 
-  return text.trim().slice(0, 12000);
+  return cleanReaderText(text).slice(0, MAX_PAGE_TEXT_CHARS);
+}
+
+// Job boards wrap the listing in heavy nav/footer chrome, which Reader
+// returns as markdown links and images. On Jobgether that chrome pushed the
+// real "Job description" section past the old 12,000-char cap, so the model
+// only saw its first lines and invented the rest. Link URLs and images carry
+// nothing the extraction needs, so keep just the visible link text, and
+// allow more room overall.
+const MAX_PAGE_TEXT_CHARS = 20000;
+
+function cleanReaderText(text: string): string {
+  return text
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]*)\]\((?:[^()]|\([^)]*\))*\)/g, '$1')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 // Even with the headers above, the free reader proxy occasionally still
@@ -310,7 +327,11 @@ Deno.serve(async (req) => {
     '(3-letter code), salary_type (one of annual, monthly, weekly, hourly), ' +
     'employment_type (one of full_time, part_time), location_type (one of ' +
     'on_site, hybrid, remote), location (city/region text), description ' +
-    "(the full job description, cleaned up as plain text). Use null for " +
+    '(the full job description as plain text: copy the listing\'s own ' +
+    'wording, never summarise, paraphrase or add anything. If the page has ' +
+    'both a short overview/summary and a full job description section, use ' +
+    'the full section. If the text stops partway through, end the ' +
+    'description where the text ends rather than continuing it). Use null for ' +
     "anything not clearly stated in the page — don't invent details. If a " +
     "block of structured JobPosting data is included, it came straight from " +
     "the page's own SEO metadata — prefer its explicit fields (employmentType, " +
@@ -322,7 +343,13 @@ Deno.serve(async (req) => {
     "it does NOT mean fully remote, and many hybrid roles are tagged that way " +
     "too — never map TELECOMMUTE to remote by itself; fall back to it only " +
     'when nothing clearer is available, and prefer hybrid over remote in that ' +
-    'case if the page mentions any office/on-site presence at all. If a ' +
+    'case if the page mentions any office/on-site presence at all. That ' +
+    'hybrid preference applies ONLY to the TELECOMMUTE fallback. Otherwise ' +
+    'use what the listing states: "Remote", "fully remote", "work from home" ' +
+    'or "Remote from <country/region>" means remote; choose hybrid only when ' +
+    'the listing says hybrid or describes a regular office/home split (e.g. ' +
+    '"2 days a week in the office"). A passing mention that some colleagues ' +
+    'work on site does not make a remote role hybrid. If a ' +
     "block of structured job data from Greenhouse's job board API is " +
     'included, it is the authoritative source for this listing (the page ' +
     "itself is a client-side embed with no visible job content) — use its " +
