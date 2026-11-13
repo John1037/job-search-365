@@ -236,6 +236,35 @@ async function fetchGreenhouseEmbedJob(url: string): Promise<string | null> {
   }
 }
 
+// Nano over-picks "hybrid" from incidental wording (e.g. a remote role whose
+// team "may be working remotely or based on site"), and prompting alone
+// didn't stop it. Hybrid has to be stated, so require evidence for it in
+// the text the model was given; when there's none and the listing clearly
+// says remote, the model's hybrid is overridden to remote.
+const HYBRID_EVIDENCE = [
+  /\bhybrid\b/i,
+  /\b(?:\d|one|two|three|four)\s*(?:\+\s*)?days?\s+(?:a|per|each)\s+week\b/i,
+  /\bdays?\s+(?:in|at)\s+(?:the\s+|our\s+)?office\b/i,
+  /\boffice[^.\n]{0,40}\b(?:\d|one|two|three|four)\s+days?\b/i,
+];
+const REMOTE_EVIDENCE = [
+  /\bremote\s+from\b/i,
+  /\bfully[\s-]remote\b/i,
+  /\b100%\s*remote\b/i,
+  /\bremote[\s-]first\b/i,
+  /\bwork(?:ing)?\s+(?:\w+\s+)?from\s+home\b/i,
+  /\b(?:workplace|work\s+type|location\s+type|work\s+model)\s*(?:type)?\s*[:-]\s*remote\b/i,
+  /"(?:workplaceType|workplace_type)"\s*:\s*"remote"/i,
+];
+
+function correctLocationType(modelValue: unknown, sourceText: string): unknown {
+  if (modelValue !== 'hybrid') return modelValue;
+  if (HYBRID_EVIDENCE.some((re) => re.test(sourceText))) return modelValue;
+  if (!REMOTE_EVIDENCE.some((re) => re.test(sourceText))) return modelValue;
+  console.log('[import-job-listing] location_type hybrid -> remote: no hybrid wording, explicit remote wording');
+  return 'remote';
+}
+
 const EXTRACTION_KEYS = [
   'job_title',
   'employer',
@@ -472,6 +501,7 @@ Deno.serve(async (req) => {
     for (const key of EXTRACTION_KEYS) {
       job[key] = extracted[key] ?? null;
     }
+    job.location_type = correctLocationType(job.location_type, userContent);
 
     console.log('[import-job-listing] extracted job:', JSON.stringify(job));
 
