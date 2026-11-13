@@ -56,8 +56,17 @@ async function fetchListingText(url: string, waitSeconds: number): Promise<strin
 // allow more room overall.
 const MAX_PAGE_TEXT_CHARS = 20000;
 
+// Checkbox lines ("- [x] ...") are form controls, never listing content.
+// Jobgether's "report this job" form renders as "- [x] This job is not
+// fully remote - [x] Remote location is not correct ...", which the model
+// read as a statement about the job and classified a remote role as hybrid.
+const CHECKBOX_LINE = /^\s*[-*+]\s+\[[ xX]\]\s/;
+
 function cleanReaderText(text: string): string {
   return text
+    .split('\n')
+    .filter((line) => !CHECKBOX_LINE.test(line))
+    .join('\n')
     .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
     .replace(/\[([^\]]*)\]\((?:[^()]|\([^)]*\))*\)/g, '$1')
     .replace(/[ \t]+\n/g, '\n')
@@ -349,7 +358,9 @@ Deno.serve(async (req) => {
     'or "Remote from <country/region>" means remote; choose hybrid only when ' +
     'the listing says hybrid or describes a regular office/home split (e.g. ' +
     '"2 days a week in the office"). A passing mention that some colleagues ' +
-    'work on site does not make a remote role hybrid. If a ' +
+    'work on site does not make a remote role hybrid. Judge only from the ' +
+    "listing itself, never from the site's forms, feedback options or other " +
+    'jobs shown on the page. If a ' +
     "block of structured job data from Greenhouse's job board API is " +
     'included, it is the authoritative source for this listing (the page ' +
     "itself is a client-side embed with no visible job content) — use its " +
